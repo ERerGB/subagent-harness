@@ -199,9 +199,9 @@ function parseProfiles(lines: string[]): ProfilesConfig | undefined {
       continue;
     }
 
-    const profile = parseProfileBody(lines, i + 1, childIndent);
+    const { _endLine, ...profile } = parseProfileBody(lines, i + 1, childIndent);
     profiles[key] = profile;
-    i = profile._endLine;
+    i = _endLine;
   }
 
   if (Object.keys(profiles).length === 0) return undefined;
