@@ -18,7 +18,14 @@ Recently, our team has been developing [Magpie](https://magpie.chat/en). To enab
 
 This system runs smoothly in production. However, for testing and rapid iteration, developers prefer to install the agent from the repository into their local AI IDE (like Cursor) so they can summon it for testing at any time while writing code.
 
-Here is a crucial characteristic of advanced AI development: **Agents are highly "living" artifacts.** If you follow industry trends, you'll know that top teams are no longer just manually tweaking prompts. They are introducing automated testing workflows based on frameworks like [DSPy](https://dspy.ai/) or [genetic algorithms](https://github.com/stack-research/genetic-prompt-programming). This means the system constantly mutates, crosses over, and eliminates prompts and parameters based on real user feedback—evolving daily or even hourly. In the future, they might continuously self-iterate based on global corpora.
+Here is a crucial characteristic of advanced AI development: **Agents are highly "living" artifacts.** If you follow industry trends, you'll know that top teams are no longer just manually tweaking prompts. A new generation of self-optimization techniques is emerging:
+
+- DeepMind's [Promptbreeder](https://arxiv.org/abs/2309.16797) treats prompts as organisms, using LLMs to mutate and breed better prompts through evolutionary selection.
+- [EvoSkill](https://arxiv.org/abs/2603.02766) goes further—it discovers entirely new skills for agents based on failure patterns and applies Pareto selection to balance competing objectives.
+- The [Opus Self-Evolving Agent](https://dev.to/stefan_nitu/32-more-generations-my-self-evolving-ai-agent-learned-to-delete-its-own-code-18bp) experiment demonstrated an agent that learned to reflexively delete its own code as part of structural evolution.
+- Frameworks like [Genetic Prompt Programming](https://github.com/stack-research/genetic-prompt-programming) and [DSPy](https://dspy.ai/) provide ready-to-use pipelines where prompts are scored, diagnosed, and mutated automatically against test corpora.
+
+This means the system constantly mutates, crosses over, and eliminates prompts and parameters based on real user feedback—evolving daily or even hourly. In the future, they might continuously self-iterate based on global corpora.
 
 In today's AI-native workflow, developers rarely copy and paste manually anymore. The most common approach is to open an LLM and say: *"Help me pull the latest Agent definition from the repo and install it into my local IDE for testing."* This sounds elegant. But when the same Agent is being iterated at high frequency—sometimes by humans, sometimes by automated evolution pipelines—the lack of a forced synchronization mechanism causes production configurations and local IDE files to quickly fall out of sync.
 
