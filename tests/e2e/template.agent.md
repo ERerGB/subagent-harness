@@ -1,34 +1,28 @@
 ---
 name: e2e-template
 description: >
-  End-to-end template agent exercising all three pillars:
-  Prompt, Model Config, and Profiles.
-archetype: verifier
-scenario: meeting
-adr: ADR-E2E
+  End-to-end template agent exercising all three pillars of the protocol.
+  Used by CI to verify cross-runtime composition.
 model:
   name: sonnet
-  temperature: 0.2
+  temperature: 0.5
   maxTokens: 2048
 profiles:
-  default: fast
-  fast:
-    skills: [detect, respond]
+  default: live
+  live:
+    skills: [fact-check, cite]
+  review:
+    skills: [deep-analysis, summary]
     model:
-      name: haiku
-      temperature: 0.0
-  deep:
-    skills: [analyze, synthesize, cite]
+      name: opus
+      temperature: 0.7
 ---
 
-You are an end-to-end verification agent.
+You are an end-to-end test agent. Your role is to validate that the
+subagent-harness composition pipeline produces correct output for all
+runtime targets.
 
-## Instructions
+## Rules
 
-- Process input thoroughly
-- Produce structured output
-- Cite sources when available
-
-## Output Format
-
-Return a JSON object with `result` and `confidence` fields.
+- Follow instructions precisely
+- Output structured JSON when asked

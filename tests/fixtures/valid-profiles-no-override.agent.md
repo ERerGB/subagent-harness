@@ -1,9 +1,6 @@
 ---
 name: simple-profiles
 description: Agent with profiles but no model overrides in any profile
-archetype: detector
-scenario: creator
-adr: ADR-005
 model:
   name: sonnet
 profiles:

@@ -43,24 +43,15 @@ export interface ProfilesConfig {
 export interface RichAgentFrontmatter {
   name: string;
   description: string;
-  archetype: string;
-  scenario: "meeting" | "creator";
-  adr: string;
   model?: ModelConfig;
   profiles?: ProfilesConfig;
-  contentSchema: Record<string, string>;
-  config: {
-    confidence: { high: number; medium: number; low: number };
-    prefetch: { level: string; maxConcurrent: number; maxHitDistance: number };
-    maxIdleTurns: number;
-  };
-  evolution?: Record<string, unknown>;
 }
 
 export interface RichAgentDocument {
   sourcePath: string;
   frontmatter: RichAgentFrontmatter;
   body: string;
+  extensions: Record<string, unknown>;
 }
 
 // ── Validation ───────────────────────────────────────────────────

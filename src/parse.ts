@@ -1,7 +1,13 @@
+import { readFileSync, existsSync } from "node:fs";
 import type { RichAgentDocument, RichAgentFrontmatter, ModelConfig, ProfilesConfig, AgentProfile } from "./types.js";
 
 const FM = /^---\n([\s\S]*?)\n---\n?([\s\S]*)$/;
 
+/**
+ * Parse a `.agent.md` string into a RichAgentDocument (pure function).
+ * Only extracts core protocol fields (name, description, model, profiles).
+ * Extensions default to empty — use loadAgentFromDisk() for sidecar merge.
+ */
 export function parseRichAgentMarkdown(sourcePath: string, content: string): RichAgentDocument {
   const match = content.match(FM);
   if (!match) {
@@ -9,15 +15,71 @@ export function parseRichAgentMarkdown(sourcePath: string, content: string): Ric
   }
   const [, yaml, body] = match;
   const frontmatter = parseYamlLike(yaml);
-  return { sourcePath, frontmatter, body: body.trimStart() };
+  return { sourcePath, frontmatter, body: body.trimStart(), extensions: {} };
+}
+
+/**
+ * Parse a `.agent.ext.yaml` string into an extensions record.
+ * Uses the same shallow YAML parser for top-level scalars and nested blocks.
+ */
+export function parseExtensionsYaml(content: string): Record<string, unknown> {
+  const lines = content.split("\n");
+  const result: Record<string, unknown> = {};
+  let i = 0;
+
+  while (i < lines.length) {
+    const line = lines[i];
+    if (!line.trim() || line.startsWith("#")) { i++; continue; }
+
+    const scalarMatch = line.match(/^(\w[\w-]*):\s+(.*)/);
+    if (scalarMatch) {
+      result[scalarMatch[1]] = scalarMatch[2].trim();
+      i++;
+      continue;
+    }
+
+    // Block key (value on next indented lines)
+    const blockMatch = line.match(/^(\w[\w-]*):\s*$/);
+    if (blockMatch) {
+      const key = blockMatch[1];
+      const nested: Record<string, unknown> = {};
+      i++;
+      while (i < lines.length && /^\s+/.test(lines[i])) {
+        const child = lines[i].match(/^\s+(\w[\w-]*):\s*(.*)/);
+        if (child) {
+          nested[child[1]] = child[2].trim();
+        }
+        i++;
+      }
+      result[key] = nested;
+      continue;
+    }
+
+    i++;
+  }
+
+  return result;
+}
+
+/**
+ * Load an agent from disk, merging the core .agent.md with its
+ * optional sidecar .agent.ext.yaml.
+ */
+export function loadAgentFromDisk(mdPath: string): RichAgentDocument {
+  const content = readFileSync(mdPath, "utf8");
+  const doc = parseRichAgentMarkdown(mdPath, content);
+
+  const extPath = mdPath.replace(/\.agent\.md$/, ".agent.ext.yaml");
+  if (existsSync(extPath)) {
+    const extContent = readFileSync(extPath, "utf8");
+    doc.extensions = parseExtensionsYaml(extContent);
+  }
+
+  return doc;
 }
 
 // ── Scalar readers ───────────────────────────────────────────────
 
-/**
- * Read a top-level scalar value from YAML lines.
- * Handles plain scalars, quoted scalars, and folded/literal block scalars (> / |).
- */
 function readScalar(lines: string[], key: string): string {
   for (let i = 0; i < lines.length; i++) {
     const m = lines[i].match(new RegExp(`^${key}:\\s*(.*)`));
@@ -54,10 +116,6 @@ function readOptionalScalar(lines: string[], key: string): string | undefined {
 
 // ── Nested block reader ──────────────────────────────────────────
 
-/**
- * Parse a shallow nested YAML block. Returns key-value pairs for
- * immediate children at the given indent level.
- */
 function readNestedBlock(lines: string[], key: string): Record<string, string> | undefined {
   let blockStart = -1;
   for (let i = 0; i < lines.length; i++) {
@@ -99,7 +157,6 @@ function parseModelConfig(lines: string[]): ModelConfig | undefined {
 
 // ── Inline array parser ──────────────────────────────────────────
 
-/** Parse `[item1, item2, item3]` into string array. */
 function parseInlineArray(value: string): string[] {
   const inner = value.replace(/^\[/, "").replace(/\]$/, "").trim();
   if (!inner) return [];
@@ -108,21 +165,7 @@ function parseInlineArray(value: string): string[] {
 
 // ── Profiles parser ──────────────────────────────────────────────
 
-/**
- * Parse the profiles block. Structure:
- *
- *   profiles:
- *     default: live
- *     live:
- *       skills: [fact-check, real-time-cite]
- *     review:
- *       skills: [deep-analysis, citation-gen]
- *       model:
- *         name: opus
- *         temperature: 0.7
- */
 function parseProfiles(lines: string[]): ProfilesConfig | undefined {
-  // Find the `profiles:` top-level block
   let blockStart = -1;
   for (let i = 0; i < lines.length; i++) {
     if (/^profiles:\s*$/.test(lines[i])) {
@@ -132,7 +175,6 @@ function parseProfiles(lines: string[]): ProfilesConfig | undefined {
   }
   if (blockStart < 0) return undefined;
 
-  // Detect the indent of the first child (should be 2 spaces)
   const childIndentMatch = lines[blockStart]?.match(/^(\s+)/);
   if (!childIndentMatch) return undefined;
   const childIndent = childIndentMatch[1].length;
@@ -143,11 +185,8 @@ function parseProfiles(lines: string[]): ProfilesConfig | undefined {
   let i = blockStart;
   while (i < lines.length) {
     const line = lines[i];
-
-    // Stop if we hit a line at top-level indent (not indented or less indented)
     if (!/^\s/.test(line)) break;
 
-    // Match child-level keys (e.g., `  default: live` or `  live:`)
     const childMatch = line.match(new RegExp(`^\\s{${childIndent}}(\\w[\\w-]*):\\s*(.*)`));
     if (!childMatch) break;
 
@@ -160,7 +199,6 @@ function parseProfiles(lines: string[]): ProfilesConfig | undefined {
       continue;
     }
 
-    // This is a profile name. Parse its children.
     const profile = parseProfileBody(lines, i + 1, childIndent);
     profiles[key] = profile;
     i = profile._endLine;
@@ -175,7 +213,6 @@ interface ProfileParseResult extends AgentProfile {
   _endLine: number;
 }
 
-/** Parse the body of a single profile (skills + optional model). */
 function parseProfileBody(lines: string[], start: number, parentIndent: number): ProfileParseResult {
   const subIndent = parentIndent + 2;
   let skills: string[] = [];
@@ -184,8 +221,6 @@ function parseProfileBody(lines: string[], start: number, parentIndent: number):
 
   while (i < lines.length) {
     const line = lines[i];
-
-    // Must be indented deeper than parent
     const indentMatch = line.match(/^(\s+)/);
     if (!indentMatch || indentMatch[1].length < subIndent) break;
 
@@ -199,7 +234,6 @@ function parseProfileBody(lines: string[], start: number, parentIndent: number):
       skills = parseInlineArray(value);
       i++;
     } else if (key === "model") {
-      // Parse nested model block
       const modelBlock = parseSubModelBlock(lines, i + 1, subIndent);
       model = modelBlock.config;
       i = modelBlock.endLine;
@@ -236,33 +270,15 @@ function parseSubModelBlock(lines: string[], start: number, parentIndent: number
   return { config: Object.keys(config).length > 0 ? config : undefined as unknown as Partial<ModelConfig>, endLine: i };
 }
 
-// ── Main parser ──────────────────────────────────────────────────
+// ── Main parser (core fields only) ───────────────────────────────
 
 function parseYamlLike(yaml: string): RichAgentFrontmatter {
   const lines = yaml.split("\n");
 
   const name = readScalar(lines, "name");
   const description = readScalar(lines, "description");
-  const archetype = readOptionalScalar(lines, "archetype") ?? "";
-  const scenario = readScalar(lines, "scenario") as "meeting" | "creator";
-  const adr = readOptionalScalar(lines, "adr") ?? "";
-
   const model = parseModelConfig(lines);
   const profiles = parseProfiles(lines);
 
-  return {
-    name,
-    description,
-    archetype,
-    scenario,
-    adr,
-    model,
-    profiles,
-    contentSchema: {},
-    config: {
-      confidence: { high: 0.8, medium: 0.6, low: 0.4 },
-      prefetch: { level: "L1_FAST", maxConcurrent: 1, maxHitDistance: 2 },
-      maxIdleTurns: 5
-    },
-  };
+  return { name, description, model, profiles };
 }

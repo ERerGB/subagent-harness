@@ -1,0 +1,5 @@
+archetype: analyzer
+scenario: meeting
+adr: ADR-001
+config:
+  maxIdleTurns: 5

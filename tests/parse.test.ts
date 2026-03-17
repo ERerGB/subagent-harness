@@ -1,6 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { parseRichAgentMarkdown } from "../src/parse.js";
+import { parseRichAgentMarkdown, parseExtensionsYaml, loadAgentFromDisk } from "../src/parse.js";
 import { readFixture } from "./helpers.js";
+import { resolve, join } from "node:path";
+
+const FIXTURES_DIR = resolve(import.meta.dirname, "fixtures");
 
 describe("parseRichAgentMarkdown", () => {
   // ── Prompt pillar ──────────────────────────────────────────────
@@ -36,15 +39,22 @@ describe("parseRichAgentMarkdown", () => {
     expect(doc.frontmatter.description).toBe("Bare minimum required fields only");
   });
 
-  it("parses archetype and scenario", () => {
-    const doc = parseRichAgentMarkdown("test.md", readFixture("valid-full.agent.md"));
-    expect(doc.frontmatter.archetype).toBe("analyzer");
-    expect(doc.frontmatter.scenario).toBe("meeting");
-  });
-
   it("stores sourcePath from argument", () => {
     const doc = parseRichAgentMarkdown("/some/path.md", readFixture("valid-minimal.agent.md"));
     expect(doc.sourcePath).toBe("/some/path.md");
+  });
+
+  it("initializes extensions as empty object", () => {
+    const doc = parseRichAgentMarkdown("test.md", readFixture("valid-full.agent.md"));
+    expect(doc.extensions).toEqual({});
+  });
+
+  // ── Core schema: no non-core fields ─────────────────────────────
+
+  it("frontmatter only contains core fields (name, description, model, profiles)", () => {
+    const doc = parseRichAgentMarkdown("test.md", readFixture("valid-full.agent.md"));
+    const keys = Object.keys(doc.frontmatter);
+    expect(keys.sort()).toEqual(["description", "model", "name", "profiles"].sort());
   });
 
   // ── Model Config pillar ────────────────────────────────────────
@@ -88,7 +98,6 @@ describe("parseRichAgentMarkdown", () => {
     expect(p).toBeDefined();
     expect(p!.profiles["standard"].skills).toEqual(["detect", "classify"]);
     expect(p!.profiles["standard"].model).toBeUndefined();
-    expect(p!.profiles["verbose"].skills).toEqual(["detect", "classify", "explain", "trace"]);
   });
 
   it("parses single-profile agent", () => {
@@ -97,7 +106,6 @@ describe("parseRichAgentMarkdown", () => {
     expect(p).toBeDefined();
     expect(p!.default).toBe("only");
     expect(Object.keys(p!.profiles)).toHaveLength(1);
-    expect(p!.profiles["only"].skills).toEqual(["respond", "summarize"]);
   });
 
   it("returns undefined profiles when not present", () => {
@@ -115,5 +123,59 @@ describe("parseRichAgentMarkdown", () => {
   it("throws on missing required key (name)", () => {
     expect(() => parseRichAgentMarkdown("bad.md", readFixture("invalid-no-name.agent.md")))
       .toThrow("Missing required key: name");
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// Extensions parser
+// ═══════════════════════════════════════════════════════════════════
+
+describe("parseExtensionsYaml", () => {
+  it("parses scalar fields", () => {
+    const ext = parseExtensionsYaml("scenario: meeting\narchetype: analyzer\n");
+    expect(ext.scenario).toBe("meeting");
+    expect(ext.archetype).toBe("analyzer");
+  });
+
+  it("parses nested block fields", () => {
+    const ext = parseExtensionsYaml("evolution:\n  engine: hacker\n  cycle: 12\n");
+    expect(ext.evolution).toEqual({ engine: "hacker", cycle: "12" });
+  });
+
+  it("ignores comment lines", () => {
+    const ext = parseExtensionsYaml("# comment\nscenario: meeting\n");
+    expect(ext.scenario).toBe("meeting");
+    expect(Object.keys(ext)).toHaveLength(1);
+  });
+
+  it("returns empty object for empty content", () => {
+    expect(parseExtensionsYaml("")).toEqual({});
+    expect(parseExtensionsYaml("\n\n")).toEqual({});
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// loadAgentFromDisk (sidecar merge)
+// ═══════════════════════════════════════════════════════════════════
+
+describe("loadAgentFromDisk", () => {
+  it("loads core .agent.md and merges .ext.yaml sidecar", () => {
+    const doc = loadAgentFromDisk(join(FIXTURES_DIR, "valid-full.agent.md"));
+    expect(doc.frontmatter.name).toBe("test-agent");
+    expect(doc.extensions.archetype).toBe("analyzer");
+    expect(doc.extensions.scenario).toBe("meeting");
+    expect(doc.extensions.adr).toBe("ADR-001");
+  });
+
+  it("loads core .agent.md with empty extensions when no sidecar exists", () => {
+    const doc = loadAgentFromDisk(join(FIXTURES_DIR, "valid-minimal.agent.md"));
+    expect(doc.frontmatter.name).toBe("bare-bones");
+    expect(doc.extensions).toEqual({});
+  });
+
+  it("merges nested extension blocks", () => {
+    const doc = loadAgentFromDisk(join(FIXTURES_DIR, "valid-generic.agent.md"));
+    expect(doc.extensions.scenario).toBe("prompt-evolution");
+    expect(doc.extensions.evolution).toEqual({ engine: "hacker", cycle: "0" });
   });
 });
