@@ -113,6 +113,63 @@ Reload your IDE window → open the Subagents list → your agent is discovered,
 
 ---
 
+## E2E Testing Layers
+
+To avoid false confidence, runtime verification is split into 3 layers:
+
+### L1 — Compose Pipeline Integration
+
+- Parse `.agent.md` + `.agent.ext.yaml`
+- Validate
+- Compose artifacts for Cursor / Claude Code / Production
+- Write + reload artifacts
+
+Command:
+
+```bash
+pnpm test:l1
+```
+
+### L2 — Runtime Format Compliance
+
+- Enforce output contracts (required/forbidden fields)
+- Catch adapter regressions before real runtime checks
+
+Command:
+
+```bash
+pnpm test:l2
+```
+
+### L3 — Live Runtime Smoke
+
+- **Production**: required in CI, real Node process loads and executes compiled artifact
+- **Cursor / Claude Code**: real-environment probe commands (optional by default)
+
+Command:
+
+```bash
+pnpm test:l3
+```
+
+Optional probe env vars for real local runtime checks:
+
+```bash
+export CURSOR_RUNTIME_CHECK_CMD='your-cursor-smoke-command-using-$AGENT_FILE'
+export CLAUDE_RUNTIME_CHECK_CMD='your-claude-smoke-command-using-$AGENT_FILE'
+
+# Optional strict mode (comma-separated): production,cursor,claude
+export L3_REQUIRE_TARGETS='production,cursor,claude'
+```
+
+Run all layers:
+
+```bash
+pnpm test:e2e
+```
+
+---
+
 ## Programmatic Embedding (CLI / Production)
 
 `subagent-harness` is not only a compose CLI. You can import it as a package inside your own terminal app, backend worker, or release pipeline.

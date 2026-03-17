@@ -29,7 +29,12 @@ jobs:
       - name: Build
         run: pnpm build
 
-      - name: Test
+      - name: E2E Layers (L1/L2/L3)
+        env:
+          L3_REQUIRE_TARGETS: production
+        run: pnpm test:e2e
+
+      - name: Full Test Suite
         run: pnpm test
 
       - name: Package dry-run
