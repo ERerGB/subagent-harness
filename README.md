@@ -14,6 +14,8 @@ org-level split checklist.
 - `.cursor/skills/agents-governor/SKILL.md`: executable governance workflow
 - `.cursor/skills/agents-governor/reference.md`: rule details and check matrix
 - `docs/TRUSTED_PUBLISHING.md`: npm Trusted Publishing setup and release flow
+- `docs/QUICKSTART_5_MIN.md`: onboarding guide for external testers
+- `docs/BETA_FEEDBACK.md`: feedback form for beta validation
 
 ## Why
 
