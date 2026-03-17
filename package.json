@@ -1,0 +1,32 @@
+{
+  "name": "subagent-harness",
+  "version": "0.1.0",
+  "description": "Parse, validate, and compose rich subagent definitions into runtime-specific formats.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist",
+    "prepare": "pnpm build"
+  },
+  "keywords": [
+    "subagent",
+    "cursor",
+    "agent",
+    "markdown",
+    "frontmatter"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.2"
+  },
+  "packageManager": "pnpm@10.24.0+sha512.01ff8ae71b4419903b65c60fb2dc9d34cf8bb6e06d03bde112ef38f7a34d6904c424ba66bea5cdcf12890230bf39f9580473140ed9c946fef328b6e5238a345a"
+}
