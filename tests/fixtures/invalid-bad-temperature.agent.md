@@ -1,9 +1,6 @@
 ---
 name: hot-agent
 description: Agent with out-of-range temperature
-archetype: analyzer
-scenario: meeting
-adr: ADR-001
 model:
   name: opus
   temperature: 5.0

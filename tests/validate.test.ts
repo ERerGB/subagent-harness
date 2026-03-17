@@ -32,6 +32,12 @@ describe("validateRichAgent", () => {
     expect(result.ok).toBe(true);
   });
 
+  it("passes validation for generic (non-Magpie) agent", () => {
+    const result = parseAndValidate("valid-generic.agent.md");
+    expect(result.ok).toBe(true);
+    expect(result.issues.filter(i => i.level === "error")).toHaveLength(0);
+  });
+
   // ── Warning: missing model config ──────────────────────────────
 
   it("emits W_NO_MODEL warning when model config is absent", () => {

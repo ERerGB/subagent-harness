@@ -11,12 +11,6 @@ export function validateRichAgent(doc: RichAgentDocument): ValidationResult {
   if (!f.description || f.description.length < 3) {
     issues.push({ code: "E_DESC", message: "description is required", level: "error", path: "description" });
   }
-  if (!(f.scenario === "meeting" || f.scenario === "creator")) {
-    issues.push({ code: "E_SCENARIO", message: "scenario must be meeting|creator", level: "error", path: "scenario" });
-  }
-  if (!f.adr) {
-    issues.push({ code: "E_ADR", message: "adr is required", level: "error", path: "adr" });
-  }
   if (!doc.body.trim()) {
     issues.push({ code: "E_BODY", message: "prompt body is required", level: "error", path: "body" });
   }

@@ -3,9 +3,6 @@ name: test-agent
 description: >
   A fully specified agent with all three pillars present
   for comprehensive testing.
-archetype: analyzer
-scenario: meeting
-adr: ADR-001
 model:
   name: sonnet
   temperature: 0.3

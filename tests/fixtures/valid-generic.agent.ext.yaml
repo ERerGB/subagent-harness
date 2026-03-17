@@ -1,0 +1,6 @@
+archetype: optimizer
+scenario: prompt-evolution
+adr: ADR-HACK-001
+evolution:
+  engine: hacker
+  cycle: 0

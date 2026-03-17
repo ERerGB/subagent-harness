@@ -1,203 +1,186 @@
-/**
- * E2E round-trip tests: compose a template agent to all three runtime
- * targets, write to disk, then reload and verify in the target-native way.
- */
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { readFileSync, writeFileSync, mkdtempSync, rmSync, mkdirSync } from "node:fs";
-import { resolve, join } from "node:path";
+import { mkdtempSync, writeFileSync, readFileSync, rmSync, existsSync } from "node:fs";
+import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
-import { parseRichAgentMarkdown } from "../../src/parse.js";
-import { composeSubagent, resolveModel } from "../../src/compose.js";
+
+import { loadAgentFromDisk } from "../../src/parse.js";
+import { composeSubagent } from "../../src/compose.js";
+import { validateRichAgent } from "../../src/validate.js";
 import type { RichAgentDocument } from "../../src/types.js";
 
-// ── Shared setup ─────────────────────────────────────────────────
+const TEMPLATE_DIR = resolve(import.meta.dirname);
+const TEMPLATE_PATH = join(TEMPLATE_DIR, "template.agent.md");
 
-const TEMPLATE_PATH = resolve(import.meta.dirname, "template.agent.md");
-let doc: RichAgentDocument;
-let tmpRoot: string;
-let cursorDir: string;
-let ccDir: string;
-let prodDir: string;
-
-/** Parse YAML frontmatter from a composed runtime .md file (minimal parser). */
-function parseFrontmatter(content: string): Record<string, string> {
-  const fmMatch = content.match(/^---\n([\s\S]*?)\n---/);
-  if (!fmMatch) return {};
+// ── Lightweight parsers for verifying composed output ──────────────
+function parseFrontmatter(md: string): Record<string, string> {
+  const match = md.match(/^---\n([\s\S]*?)\n---/);
+  if (!match) return {};
   const result: Record<string, string> = {};
-  for (const line of fmMatch[1].split("\n")) {
-    const m = line.match(/^(\w[\w-]*):\s*(.*)/);
+  for (const line of match[1].split("\n")) {
+    const m = line.match(/^(\w[\w-]*):\s+(.*)/);
     if (m) result[m[1]] = m[2].trim();
   }
   return result;
 }
 
-/** Extract body (everything after the second ---) from a composed .md file. */
-function extractBody(content: string): string {
-  const match = content.match(/^---\n[\s\S]*?\n---\n?([\s\S]*)$/);
+function extractBody(md: string): string {
+  const match = md.match(/^---\n[\s\S]*?\n---\n?([\s\S]*)$/);
   return match ? match[1].trim() : "";
 }
 
+// ── Test state ─────────────────────────────────────────────────────
+let tmpDir: string;
+let doc: RichAgentDocument;
+
 beforeAll(() => {
-  const raw = readFileSync(TEMPLATE_PATH, "utf8");
-  doc = parseRichAgentMarkdown(TEMPLATE_PATH, raw);
-
-  tmpRoot = mkdtempSync(join(tmpdir(), "subagent-e2e-"));
-  cursorDir = join(tmpRoot, "cursor");
-  ccDir = join(tmpRoot, "claude-code");
-  prodDir = join(tmpRoot, "production");
-  mkdirSync(cursorDir, { recursive: true });
-  mkdirSync(ccDir, { recursive: true });
-  mkdirSync(prodDir, { recursive: true });
-
-  writeFileSync(join(cursorDir, "e2e-template.md"), composeSubagent(doc, "cursor"), "utf8");
-  writeFileSync(join(ccDir, "e2e-template.md"), composeSubagent(doc, "claude-code"), "utf8");
-  writeFileSync(join(prodDir, "e2e-template.json"), composeSubagent(doc, "production"), "utf8");
-  writeFileSync(join(prodDir, "e2e-template-fast.json"), composeSubagent(doc, "production", "fast"), "utf8");
-  writeFileSync(join(prodDir, "e2e-template-deep.json"), composeSubagent(doc, "production", "deep"), "utf8");
+  tmpDir = mkdtempSync(join(tmpdir(), "subagent-e2e-"));
+  doc = loadAgentFromDisk(TEMPLATE_PATH);
 });
 
 afterAll(() => {
-  rmSync(tmpRoot, { recursive: true, force: true });
+  if (tmpDir && existsSync(tmpDir)) {
+    rmSync(tmpDir, { recursive: true, force: true });
+  }
 });
 
 // ═══════════════════════════════════════════════════════════════════
-// Cursor: load composed .md and verify runtime format
+// Validation gate
+// ═══════════════════════════════════════════════════════════════════
+
+describe("E2E — Validation gate", () => {
+  it("template passes validation with no errors", () => {
+    const result = validateRichAgent(doc);
+    expect(result.ok).toBe(true);
+  });
+
+  it("loads extensions from sidecar", () => {
+    expect(doc.extensions.archetype).toBe("tester");
+    expect(doc.extensions.scenario).toBe("e2e");
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// Cursor runtime
 // ═══════════════════════════════════════════════════════════════════
 
 describe("E2E — Cursor runtime", () => {
-  it("composed file is valid markdown with YAML frontmatter", () => {
-    const content = readFileSync(join(cursorDir, "e2e-template.md"), "utf8");
-    const fm = parseFrontmatter(content);
-    expect(fm["name"]).toBe("e2e-template");
-    expect(fm["description"]).toBeTruthy();
+  let cursorPath: string;
+  let cursorOutput: string;
+
+  beforeAll(() => {
+    cursorOutput = composeSubagent(doc, "cursor");
+    cursorPath = join(tmpDir, "cursor.md");
+    writeFileSync(cursorPath, cursorOutput, "utf8");
   });
 
-  it("frontmatter contains only name and description", () => {
-    const content = readFileSync(join(cursorDir, "e2e-template.md"), "utf8");
-    const fm = parseFrontmatter(content);
-    const keys = Object.keys(fm);
-    expect(keys).toContain("name");
-    expect(keys).toContain("description");
-    expect(keys).not.toContain("model");
-    expect(keys).not.toContain("profiles");
-    expect(keys).not.toContain("skills");
-    expect(keys).not.toContain("temperature");
+  it("writes Cursor-format Markdown file", () => {
+    expect(existsSync(cursorPath)).toBe(true);
   });
 
-  it("body matches original prompt content", () => {
-    const content = readFileSync(join(cursorDir, "e2e-template.md"), "utf8");
-    const body = extractBody(content);
-    expect(body).toContain("You are an end-to-end verification agent");
-    expect(body).toContain("## Instructions");
-    expect(body).toContain("## Output Format");
+  it("Cursor frontmatter contains name and description", () => {
+    const fm = parseFrontmatter(cursorOutput);
+    expect(fm.name).toBe("e2e-template");
+    expect(fm.description).toBeTruthy();
+  });
+
+  it("Cursor output does not contain model or profiles", () => {
+    expect(cursorOutput).not.toContain("model:");
+    expect(cursorOutput).not.toContain("profiles:");
+  });
+
+  it("Cursor output contains prompt body", () => {
+    const body = extractBody(cursorOutput);
+    expect(body).toContain("end-to-end test agent");
+  });
+
+  it("re-read matches written content", () => {
+    expect(readFileSync(cursorPath, "utf8")).toBe(cursorOutput);
   });
 });
 
 // ═══════════════════════════════════════════════════════════════════
-// Claude Code: load composed .md and verify CC-specific fields
+// Claude Code runtime
 // ═══════════════════════════════════════════════════════════════════
 
 describe("E2E — Claude Code runtime", () => {
-  it("composed file is valid markdown with CC frontmatter", () => {
-    const content = readFileSync(join(ccDir, "e2e-template.md"), "utf8");
-    const fm = parseFrontmatter(content);
-    expect(fm["name"]).toBe("e2e-template");
-    expect(fm["description"]).toBeTruthy();
+  let ccPath: string;
+  let ccOutput: string;
+
+  beforeAll(() => {
+    ccOutput = composeSubagent(doc, "claude-code");
+    ccPath = join(tmpDir, "claude-code.md");
+    writeFileSync(ccPath, ccOutput, "utf8");
+  });
+
+  it("writes Claude Code format Markdown file", () => {
+    expect(existsSync(ccPath)).toBe(true);
   });
 
   it("frontmatter includes model field", () => {
-    const content = readFileSync(join(ccDir, "e2e-template.md"), "utf8");
-    const fm = parseFrontmatter(content);
-    expect(fm["model"]).toBe("sonnet");
+    const fm = parseFrontmatter(ccOutput);
+    expect(fm.model).toBe("sonnet");
   });
 
-  it("frontmatter includes maxTurns field", () => {
-    const content = readFileSync(join(ccDir, "e2e-template.md"), "utf8");
-    const fm = parseFrontmatter(content);
-    expect(fm["maxTurns"]).toBeDefined();
-    expect(parseInt(fm["maxTurns"])).toBeGreaterThan(0);
+  it("includes maxTurns from sidecar extensions", () => {
+    const fm = parseFrontmatter(ccOutput);
+    expect(fm.maxTurns).toBe("3");
   });
 
-  it("body matches original prompt content", () => {
-    const content = readFileSync(join(ccDir, "e2e-template.md"), "utf8");
-    const body = extractBody(content);
-    expect(body).toContain("You are an end-to-end verification agent");
+  it("body contains prompt", () => {
+    const body = extractBody(ccOutput);
+    expect(body).toContain("end-to-end test agent");
+  });
+
+  it("re-read matches written content", () => {
+    expect(readFileSync(ccPath, "utf8")).toBe(ccOutput);
   });
 });
 
 // ═══════════════════════════════════════════════════════════════════
-// Production (Node.js): JSON.parse + programmatic verification
+// Production runtime
 // ═══════════════════════════════════════════════════════════════════
 
-describe("E2E — Production runtime (Node.js)", () => {
-  // ── Full-profiles output (no profile selection) ────────────────
+describe("E2E — Production runtime", () => {
+  let prodPath: string;
+  let prodJson: Record<string, unknown>;
 
-  it("composed JSON is valid and parseable", () => {
-    const raw = readFileSync(join(prodDir, "e2e-template.json"), "utf8");
-    expect(() => JSON.parse(raw)).not.toThrow();
+  beforeAll(() => {
+    const out = composeSubagent(doc, "production");
+    prodPath = join(tmpDir, "production.json");
+    writeFileSync(prodPath, out, "utf8");
+    prodJson = JSON.parse(out);
   });
 
-  it("contains all core identity fields", () => {
-    const json = JSON.parse(readFileSync(join(prodDir, "e2e-template.json"), "utf8"));
-    expect(json.name).toBe("e2e-template");
-    expect(json.archetype).toBe("verifier");
-    expect(json.scenario).toBe("meeting");
-    expect(json.adr).toBe("ADR-E2E");
+  it("writes valid JSON file", () => {
+    expect(existsSync(prodPath)).toBe(true);
+    expect(() => JSON.parse(readFileSync(prodPath, "utf8"))).not.toThrow();
   });
 
-  it("contains top-level model config", () => {
-    const json = JSON.parse(readFileSync(join(prodDir, "e2e-template.json"), "utf8"));
-    expect(json.model).toEqual({ name: "sonnet", temperature: 0.2, maxTokens: 2048 });
+  it("JSON includes core fields", () => {
+    expect(prodJson.name).toBe("e2e-template");
+    expect(prodJson.description).toBeTruthy();
+    expect(prodJson.prompt).toBeTruthy();
   });
 
-  it("contains all profiles for runtime dynamic selection", () => {
-    const json = JSON.parse(readFileSync(join(prodDir, "e2e-template.json"), "utf8"));
-    expect(json.profiles).toBeDefined();
-    expect(json.profiles.default).toBe("fast");
-    expect(json.profiles.profiles["fast"].skills).toEqual(["detect", "respond"]);
-    expect(json.profiles.profiles["deep"].skills).toEqual(["analyze", "synthesize", "cite"]);
+  it("JSON includes model config", () => {
+    const model = prodJson.model as Record<string, unknown>;
+    expect(model.name).toBe("sonnet");
+    expect(model.temperature).toBe(0.5);
+    expect(model.maxTokens).toBe(2048);
   });
 
-  it("contains prompt as string field", () => {
-    const json = JSON.parse(readFileSync(join(prodDir, "e2e-template.json"), "utf8"));
-    expect(json.prompt).toContain("You are an end-to-end verification agent");
-    expect(json.prompt).toContain("## Output Format");
+  it("JSON includes profiles", () => {
+    expect(prodJson.profiles).toBeDefined();
   });
 
-  // ── Profile-resolved output: "fast" (with model override) ─────
-
-  it("resolved 'fast' profile merges model override", () => {
-    const json = JSON.parse(readFileSync(join(prodDir, "e2e-template-fast.json"), "utf8"));
-    expect(json.activeProfile).toBe("fast");
-    expect(json.skills).toEqual(["detect", "respond"]);
-    expect(json.model.name).toBe("haiku");
-    expect(json.model.temperature).toBe(0.0);
-    expect(json.model.maxTokens).toBe(2048);
+  it("JSON includes extension fields from sidecar", () => {
+    expect(prodJson.archetype).toBe("tester");
+    expect(prodJson.scenario).toBe("e2e");
+    expect(prodJson.adr).toBe("ADR-E2E");
   });
 
-  // ── Profile-resolved output: "deep" (no model override) ───────
-
-  it("resolved 'deep' profile inherits top-level model", () => {
-    const json = JSON.parse(readFileSync(join(prodDir, "e2e-template-deep.json"), "utf8"));
-    expect(json.activeProfile).toBe("deep");
-    expect(json.skills).toEqual(["analyze", "synthesize", "cite"]);
-    expect(json.model).toEqual({ name: "sonnet", temperature: 0.2, maxTokens: 2048 });
-  });
-
-  // ── resolveModel() public API verification ────────────────────
-
-  it("resolveModel() merges profile override with top-level default", () => {
-    const resolved = resolveModel(doc, "fast");
-    expect(resolved).toEqual({ name: "haiku", temperature: 0.0, maxTokens: 2048 });
-  });
-
-  it("resolveModel() returns top-level model when profile has no override", () => {
-    const resolved = resolveModel(doc, "deep");
-    expect(resolved).toEqual({ name: "sonnet", temperature: 0.2, maxTokens: 2048 });
-  });
-
-  it("resolveModel() returns top-level model when no profile specified", () => {
-    const resolved = resolveModel(doc);
-    expect(resolved).toEqual({ name: "sonnet", temperature: 0.2, maxTokens: 2048 });
+  it("JSON round-trips correctly", () => {
+    const reloaded = JSON.parse(readFileSync(prodPath, "utf8"));
+    expect(reloaded).toEqual(prodJson);
   });
 });

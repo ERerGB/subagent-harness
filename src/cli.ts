@@ -2,7 +2,7 @@
 
 import { readFileSync, writeFileSync, mkdirSync, rmSync, readdirSync, statSync, existsSync } from "node:fs";
 import { resolve, basename, join } from "node:path";
-import { parseRichAgentMarkdown } from "./parse.js";
+import { loadAgentFromDisk } from "./parse.js";
 import { validateRichAgent } from "./validate.js";
 import { composeSubagent } from "./compose.js";
 import type { RuntimeTarget, ComposeTarget, SubagentConfig } from "./types.js";
@@ -138,11 +138,9 @@ function runCompose(files: string[], target: ComposeTarget, mode: Mode): { compo
   let failed = 0;
 
   for (const file of files) {
-    const content = readFileSync(file, "utf8");
-
     let doc;
     try {
-      doc = parseRichAgentMarkdown(file, content);
+      doc = loadAgentFromDisk(file);
     } catch (e) {
       console.error(`  SKIP ${file} (E_COMPOSE_PARSE: ${(e as Error).message})`);
       failed++;

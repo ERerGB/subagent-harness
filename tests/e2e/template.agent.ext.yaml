@@ -1,0 +1,5 @@
+archetype: tester
+scenario: e2e
+adr: ADR-E2E
+config:
+  maxIdleTurns: 3

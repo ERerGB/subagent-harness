@@ -1,9 +1,6 @@
 ---
 name: single-profile
 description: Agent with only one profile
-archetype: responder
-scenario: meeting
-adr: ADR-006
 profiles:
   default: only
   only:

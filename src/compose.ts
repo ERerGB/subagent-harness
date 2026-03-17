@@ -61,8 +61,9 @@ function composeClaudeCodeMarkdown(doc: RichAgentDocument, profile?: string): st
   const model = resolveModel(doc, profile);
   lines.push(`model: ${model?.name ?? "inherited"}`);
 
-  const maxTurns = doc.frontmatter.config?.maxIdleTurns;
-  if (maxTurns && maxTurns > 0) {
+  // maxTurns comes from extensions (consumer-specific)
+  const maxTurns = doc.extensions?.["maxIdleTurns"] ?? doc.extensions?.["config"]?.["maxIdleTurns" as never];
+  if (maxTurns && Number(maxTurns) > 0) {
     lines.push(`maxTurns: ${maxTurns}`);
   }
 
@@ -76,28 +77,26 @@ function composeProductionJSON(doc: RichAgentDocument, profile?: string): string
   const base: Record<string, unknown> = {
     name: doc.frontmatter.name,
     description: doc.frontmatter.description,
-    archetype: doc.frontmatter.archetype,
-    scenario: doc.frontmatter.scenario,
-    adr: doc.frontmatter.adr,
   };
 
+  // Spread extensions (consumer-specific fields like archetype, scenario, adr)
+  for (const [key, value] of Object.entries(doc.extensions)) {
+    base[key] = value;
+  }
+
   if (profile) {
-    // Resolved mode: emit a single active profile with merged model
     const resolved = resolveModel(doc, profile);
     base.model = resolved ?? "inherited";
     base.activeProfile = profile;
     const profileDef = doc.frontmatter.profiles?.profiles[profile];
     base.skills = profileDef?.skills ?? [];
   } else {
-    // Full mode: emit all profiles for runtime dynamic selection
     base.model = doc.frontmatter.model ?? "inherited";
     if (doc.frontmatter.profiles) {
       base.profiles = doc.frontmatter.profiles;
     }
   }
 
-  base.contentSchema = doc.frontmatter.contentSchema;
-  base.config = doc.frontmatter.config;
   base.prompt = doc.body.trim();
 
   return JSON.stringify(base, null, 2) + "\n";
