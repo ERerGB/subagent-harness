@@ -6,13 +6,18 @@
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "bin": {
+    "subagent-compose": "scripts/compose-agents.sh"
+  },
   "files": [
-    "dist"
+    "dist",
+    "scripts"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist",
+    "agents:compose": "bash scripts/compose-agents.sh",
     "prepare": "pnpm build"
   },
   "keywords": [

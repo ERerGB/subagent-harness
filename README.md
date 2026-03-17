@@ -7,6 +7,13 @@ Portable harness to parse, validate, and compose rich agent definitions into run
 See `docs/AGREEMENT.md` for maintainer agreements, migration triggers, and the
 org-level split checklist.
 
+## Governance Docs
+
+- `docs/AGREEMENT.md`: shared agreement and trigger checklist
+- `docs/GOVERNANCE.md`: governance entry and navigation
+- `.cursor/skills/agents-governor/SKILL.md`: executable governance workflow
+- `.cursor/skills/agents-governor/reference.md`: rule details and check matrix
+
 ## Why
 
 Teams often need:
@@ -32,12 +39,17 @@ This package provides a strict, repeatable pipeline:
 - Managing MCP servers
 - IDE-specific private APIs
 
-## Example
+## Compose (CLI)
 
 ```bash
-pnpm agents:audit
-pnpm agents:compose
-pnpm agents:check
+# Install
+pnpm add -D subagent-harness
+
+# Dry-run
+pnpm exec subagent-compose --src /path/to/archetypes --dst /path/to/.cursor/agents --dry-run
+
+# Apply
+pnpm exec subagent-compose --src /path/to/archetypes --dst /path/to/.cursor/agents --apply
 ```
 
 ## License
