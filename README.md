@@ -5,6 +5,8 @@
 
 Portable harness that parses, validates, and composes rich sub-agent definitions into runtime-specific agent files. Use it in IDE workflows (Cursor), local automation (CLI), or embed it into terminal products and production pipelines.
 
+📖 **[Read the full story: Why AI Agents need a "Compiler" and Governance Flow](https://dev.to/jz_er/beyond-copy-paste-why-ai-agents-need-a-compiler-and-governance-flow-3dg0)**
+
 ```
 ┌─────────────────┐       ┌─────────┐       ┌──────────────────────────────────────┐
 │  Rich .agent.md │──▶──│ Harness │──▶──│ Runtime-ready artifacts               │
