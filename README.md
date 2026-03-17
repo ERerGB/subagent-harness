@@ -2,6 +2,11 @@
 
 Portable harness to parse, validate, and compose rich agent definitions into runtime-specific subagent files (starting with Cursor).
 
+## Governance Agreement
+
+See `docs/AGREEMENT.md` for maintainer agreements, migration triggers, and the
+org-level split checklist.
+
 ## Why
 
 Teams often need:
