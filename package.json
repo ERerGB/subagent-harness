@@ -16,6 +16,7 @@
     "build": "tsc -p tsconfig.json && node scripts/postbuild.js",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "test:e2e": "vitest run tests/e2e/",
     "test:watch": "vitest",
     "clean": "rm -rf dist",
     "prepare": "pnpm build"

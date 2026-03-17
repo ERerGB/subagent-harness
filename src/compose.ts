@@ -23,7 +23,7 @@ export function composeSubagent(doc: RichAgentDocument, target: RuntimeTarget, p
 }
 
 /** Resolve the effective model config by merging top-level default with profile override. */
-function resolveModel(doc: RichAgentDocument, profileName?: string): ModelConfig | undefined {
+export function resolveModel(doc: RichAgentDocument, profileName?: string): ModelConfig | undefined {
   const base = doc.frontmatter.model;
   if (!profileName) return base;
 
