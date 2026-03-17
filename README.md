@@ -3,13 +3,13 @@
 > **Stop rewriting agents per runtime.**
 > Define once as SSOT, compose everywhere.
 
-Portable harness that parses, validates, and composes rich sub-agent definitions into runtime-specific agent files — Cursor, Claude Code, or your own production engine.
+Portable harness that parses, validates, and composes rich sub-agent definitions into runtime-specific agent files. Use it in IDE workflows (Cursor), local automation (CLI), or embed it into terminal products and production pipelines.
 
 ```
-┌─────────────────┐       ┌───────┐       ┌─────────────────────┐
-│  Rich .agent.md  │──▶──│ Harness │──▶──│  Runtime-ready .md   │
-│  (SSOT source)   │      │         │      │  (Cursor / CI / …)  │
-└─────────────────┘       └───────┘       └─────────────────────┘
+┌─────────────────┐       ┌─────────┐       ┌──────────────────────────────────────┐
+│  Rich .agent.md │──▶──│ Harness │──▶──│ Runtime-ready artifacts               │
+│  (SSOT source)  │      │         │      │ (Cursor / Claude Code / Production) │
+└─────────────────┘       └─────────┘       └──────────────────────────────────────┘
 ```
 
 ---
@@ -54,8 +54,8 @@ Developers now run a **stale local agent** that hallucinates, misses PR context,
 ```
 Source  ──▶  Audit  ──▶  Compose  ──▶  Smoke
   │            │            │             │
-  │  rich      │  schema    │  strip &    │  IDE discovers
-  │  .agent.md │  validate  │  generate   │  the agent ✓
+  │  rich      │  schema    │  strip &    │  IDE + production
+  │  .agent.md │  validate  │  generate   │  runtimes consume ✓
 ```
 
 **How Bob fixes it:**
@@ -106,6 +106,40 @@ pnpm exec subagent-compose \
 Reload your IDE window → open the Subagents list → your agent is discovered, formatted, and in sync with the SSOT.
 
 > Full walkthrough: **[5-Minute Quickstart](docs/QUICKSTART_5_MIN.md)**
+
+---
+
+## Programmatic Embedding (CLI / Production)
+
+`subagent-harness` is not only a compose CLI. You can import it as a package inside your own terminal app, backend worker, or release pipeline.
+
+```ts
+import { readFileSync } from "node:fs";
+import {
+  parseRichAgentMarkdown,
+  validateRichAgent,
+  composeSubagent
+} from "subagent-harness";
+
+const sourcePath = "agents/changelog-extractor.agent.md";
+const content = readFileSync(sourcePath, "utf8");
+
+const doc = parseRichAgentMarkdown(sourcePath, content);
+const validation = validateRichAgent(doc);
+
+if (!validation.ok) {
+  throw new Error(
+    `Invalid agent definition: ${validation.issues.map((i) => i.code).join(", ")}`
+  );
+}
+
+// Built-in v0 target
+const cursorAgent = composeSubagent(doc, "cursor");
+
+// You can also map `doc.frontmatter` + `doc.body` into your own runtime schema.
+```
+
+This lets product runtime and IDE runtime consume the same SSOT file while keeping environment-specific adapters isolated.
 
 ---
 
