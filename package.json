@@ -16,7 +16,10 @@
     "build": "tsc -p tsconfig.json && node scripts/postbuild.js",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:e2e": "vitest run tests/e2e/",
+    "test:l1": "vitest run tests/e2e/e2e.test.ts",
+    "test:l2": "vitest run tests/e2e/l2-runtime-compliance.test.ts",
+    "test:l3": "vitest run tests/runtime/l3-runtime-live.test.ts",
+    "test:e2e": "pnpm test:l1 && pnpm test:l2 && pnpm test:l3",
     "test:watch": "vitest",
     "clean": "rm -rf dist",
     "prepare": "pnpm build"
