@@ -55,6 +55,14 @@ pnpm exec subagent-compose --src /path/to/archetypes --dst /path/to/.cursor/agen
 pnpm exec subagent-compose --src /path/to/archetypes --dst /path/to/.cursor/agents --apply
 ```
 
+## 📚 References & Prior Art
+
+The design of `subagent-harness` is heavily inspired by ongoing industry challenges in AgentOps and Prompt Engineering:
+
+- **The "Prompt Drift" Problem**: As discussed in [*Designing AI Features Without Prompt Drift*](https://dev.to/zywrap/designing-ai-features-without-prompt-drift-105b), maintaining prompts across fragmented services leads to unpredictable degradation. `subagent-harness` solves this by forcing a Single Source of Truth (SSOT).
+- **Git-as-Source-of-Truth**: While many PromptOps platforms push for UI-based API delivery, tools like [*Agentsmith*](https://agentsmith.dev/docs/core-concepts/architecture) highlight the necessity of keeping prompts version-controlled alongside code. We believe agents are code, and their definitions belong in Git.
+- **The IDE Formatting Gap**: The community is actively exploring how to break out of proprietary IDE formats (see [*Migrating Cursor Rules to AGENTS.md*](https://www.adithyan.io/blog/migrating-cursor-rules-to-agents)). `subagent-harness` bridges this exact gap—allowing you to leverage rich, IDE-specific features (like `.cursor/agents/`) without surrendering your universal SSOT.
+
 ## License
 
 Apache-2.0
