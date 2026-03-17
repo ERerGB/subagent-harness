@@ -12,7 +12,6 @@ jobs:
     permissions:
       contents: read
       id-token: write
-    environment: npm-publish
     steps:
       - name: Checkout
         uses: actions/checkout@v4

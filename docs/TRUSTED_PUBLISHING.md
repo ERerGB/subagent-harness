@@ -16,9 +16,7 @@ This repository uses npm Trusted Publishing via GitHub Actions OIDC.
    - Owner: `ERerGB`
    - Repository: `subagent-harness`
    - Workflow file: `.github/workflows/publish-npm.yml`
-   - Environment (if required by npm UI): `npm-publish`
-4. In GitHub repo settings, ensure environment `npm-publish` exists.
-   - Optional: require manual reviewers for production publish protection.
+   - Environment: leave empty unless you intentionally use workflow environments
 
 ## Release Flows
 
