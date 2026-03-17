@@ -51,4 +51,3 @@ missing command gaps explicitly.
 - [ ] Compose deterministic
 - [ ] Smoke checks passed (if adapter behavior touched)
 - [ ] Docs updated (README/skill/reference if policy changed)
-

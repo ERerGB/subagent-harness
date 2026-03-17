@@ -5,8 +5,8 @@ Governance in this project is **skill-first**.
 ## Canonical Sources
 
 - Strategic agreement: `docs/AGREEMENT.md`
-- Executable workflow: `.cursor/skills/agents-governor/SKILL.md`
-- Rule matrix and checks: `.cursor/skills/agents-governor/reference.md`
+- Executable workflow: `governance/agents-governor/SKILL.md`
+- Rule matrix and checks: `governance/agents-governor/reference.md`
 
 ## Why Skill-First
 
@@ -19,4 +19,3 @@ defines the exact operational flow:
 4. `smoke` (runtime sanity validation)
 
 Use this doc as navigation. Put behavior changes in the skill files.
-

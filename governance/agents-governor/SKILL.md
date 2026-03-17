@@ -55,6 +55,7 @@ report the gap as `E_GOVERNANCE_MISSING_COMMAND`.
 ## Output Contract
 
 For each run, report:
+
 - Passed/failed checks
 - Files affected
 - Determinism result (idempotent or drifted)
@@ -63,4 +64,3 @@ For each run, report:
 ## Additional Rules
 
 See `reference.md` for full rule matrix and error code conventions.
-
