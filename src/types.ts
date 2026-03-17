@@ -1,4 +1,19 @@
-export type RuntimeTarget = "cursor";
+// Supported compose targets.
+// TODO: claude-code and production adapters currently emit the same format as cursor.
+//       When runtime-specific differences emerge (e.g. CC uses different frontmatter keys,
+//       production needs full config passthrough), add dedicated adapters in compose.ts.
+export type RuntimeTarget = "cursor" | "claude-code" | "production";
+
+export interface ComposeTarget {
+  runtime: RuntimeTarget;
+  dst: string;
+}
+
+export interface SubagentConfig {
+  src: string;
+  pattern?: string;
+  targets: ComposeTarget[];
+}
 
 export interface RichAgentFrontmatter {
   name: string;

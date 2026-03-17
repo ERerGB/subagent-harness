@@ -2,7 +2,6 @@ import type { RichAgentDocument, RichAgentFrontmatter } from "./types.js";
 
 const FM = /^---\n([\s\S]*?)\n---\n?([\s\S]*)$/;
 
-// Minimal parser for controlled .agent.md format.
 export function parseRichAgentMarkdown(sourcePath: string, content: string): RichAgentDocument {
   const match = content.match(FM);
   if (!match) {
@@ -13,19 +12,47 @@ export function parseRichAgentMarkdown(sourcePath: string, content: string): Ric
   return { sourcePath, frontmatter, body: body.trimStart() };
 }
 
+/**
+ * Read a top-level scalar value from YAML lines.
+ * Handles plain scalars, quoted scalars, and folded/literal block scalars (> / |).
+ */
+function readScalar(lines: string[], key: string): string {
+  for (let i = 0; i < lines.length; i++) {
+    const m = lines[i].match(new RegExp(`^${key}:\\s*(.*)`));
+    if (!m) continue;
+
+    const value = m[1].trim();
+
+    // Folded (>) or literal (|) block scalar — collect indented continuation lines
+    if (value === ">" || value === "|") {
+      const parts: string[] = [];
+      for (let j = i + 1; j < lines.length; j++) {
+        if (/^\s+/.test(lines[j])) {
+          parts.push(lines[j].trim());
+        } else {
+          break;
+        }
+      }
+      return parts.join(value === ">" ? " " : "\n");
+    }
+
+    if (!value) throw new Error(`Missing value for key: ${key}`);
+    return value.replace(/^"|"$/g, "");
+  }
+  throw new Error(`Missing required key: ${key}`);
+}
+
 function parseYamlLike(yaml: string): RichAgentFrontmatter {
-  // Intentionally strict + small for v0; callers should keep source schema stable.
-  const read = (key: string): string => {
-    const m = yaml.match(new RegExp(`^${key}:\\s*(.+)$`, "m"));
-    if (!m) throw new Error(`Missing required key: ${key}`);
-    return m[1].trim().replace(/^"|"$/g, "");
-  };
-  const name = read("name");
-  const description = read("description");
-  const archetype = read("archetype");
-  const scenario = read("scenario") as "meeting" | "creator";
-  const adr = read("adr");
-  // v0 parser keeps nested fields as defaults; full nested parsing handled in next iteration.
+  const lines = yaml.split("\n");
+
+  const name = readScalar(lines, "name");
+  const description = readScalar(lines, "description");
+  const archetype = readScalar(lines, "archetype");
+  const scenario = readScalar(lines, "scenario") as "meeting" | "creator";
+  const adr = readScalar(lines, "adr");
+
+  // v0: nested fields (contentSchema, config, skills) use defaults.
+  // Full nested YAML parsing is deferred to v1 when production runtime needs it.
   return {
     name,
     description,
