@@ -9,11 +9,43 @@ A **build-time compiler** that parses, validates, and composes rich sub-agent de
 
 📖 **[Read the full story: Why AI Agents need a "Compiler" and Governance Flow](https://dev.to/jz_er/beyond-copy-paste-why-ai-agents-need-a-compiler-and-governance-flow-3dg0)**
 
-```
-┌─────────────────┐       ┌─────────┐       ┌──────────────────────────────────────┐
-│  Rich .agent.md │──▶──│ Harness │──▶──│ Runtime-ready artifacts               │
-│  (SSOT source)  │      │         │      │ (Cursor / Claude Code / Production) │
-└─────────────────┘       └─────────┘       └──────────────────────────────────────┘
+```mermaid
+flowchart LR
+    subgraph State ["Scattered Agent State"]
+        direction TB
+        P[📝 Prompts]
+        C[⚙️ Configs]
+        S[🧩 Skills]
+    end
+
+    SSOT(("📄 Rich .agent.md<br/><b>(Single Source of Truth)</b>"))
+    
+    COMPILER{{"⚡ subagent-harness<br/><i>(Compiler)</i>"}}
+    
+    subgraph Runtimes ["Target Runtimes"]
+        direction TB
+        IDE["💻 IDE<br/><i>(Cursor, etc.)</i>"]
+        CLI["⌨️ CLI<br/><i>(Claude Code)</i>"]
+        PROD["🚀 Production<br/><i>(JSON Artifacts)</i>"]
+    end
+
+    State -->|"Flatten"| SSOT
+    SSOT -->|"Compile & Validate"| COMPILER
+    COMPILER --> IDE
+    COMPILER --> CLI
+    COMPILER --> PROD
+    
+    %% Styling
+    style SSOT fill:#1f6feb,stroke:#58a6ff,stroke-width:3px,color:#ffffff
+    style COMPILER fill:#2d333b,stroke:#d29922,stroke-width:2px,color:#c9d1d9
+    style IDE fill:#2d333b,stroke:#238636,stroke-width:2px,color:#c9d1d9
+    style CLI fill:#2d333b,stroke:#238636,stroke-width:2px,color:#c9d1d9
+    style PROD fill:#2d333b,stroke:#238636,stroke-width:2px,color:#c9d1d9
+    style Runtimes fill:none,stroke:#8b949e,stroke-dasharray: 5 5,color:#8b949e
+    style State fill:none,stroke:#8b949e,stroke-dasharray: 5 5,color:#8b949e
+    style P fill:#22272e,stroke:#444c56,color:#c9d1d9
+    style C fill:#22272e,stroke:#444c56,color:#c9d1d9
+    style S fill:#22272e,stroke:#444c56,color:#c9d1d9
 ```
 
 ## Demo Video
