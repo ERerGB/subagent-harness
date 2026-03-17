@@ -1,23 +1,24 @@
 {
   "name": "subagent-harness",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Parse, validate, and compose rich subagent definitions into runtime-specific formats.",
   "license": "Apache-2.0",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
-    "subagent-compose": "scripts/compose-agents.sh"
+    "subagent-compose": "dist/cli.js"
   },
   "files": [
-    "dist",
-    "scripts"
+    "dist"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.json && node scripts/postbuild.js",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:e2e": "vitest run tests/e2e/",
+    "test:watch": "vitest",
     "clean": "rm -rf dist",
-    "agents:compose": "bash scripts/compose-agents.sh",
     "prepare": "pnpm build"
   },
   "keywords": [
@@ -31,7 +32,9 @@
     "node": ">=20"
   },
   "devDependencies": {
-    "typescript": "^5.9.2"
+    "@types/node": "^25.5.0",
+    "typescript": "^5.9.2",
+    "vitest": "^4.1.0"
   },
   "packageManager": "pnpm@10.24.0+sha512.01ff8ae71b4419903b65c60fb2dc9d34cf8bb6e06d03bde112ef38f7a34d6904c424ba66bea5cdcf12890230bf39f9580473140ed9c946fef328b6e5238a345a"
 }
