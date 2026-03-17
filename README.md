@@ -3,7 +3,9 @@
 > **Stop rewriting agents per runtime.**
 > Define once as SSOT, compose everywhere.
 
-Portable harness that parses, validates, and composes rich sub-agent definitions into runtime-specific agent files. Use it in IDE workflows (Cursor), local automation (CLI), or embed it into terminal products and production pipelines.
+A **build-time compiler** that parses, validates, and composes rich sub-agent definitions into runtime-specific agent files. It reads `.agent.md` sources and emits target-native formats — runtime consumers read the compiled output, not the source.
+
+> **Design boundary:** subagent-harness is a build tool, not a runtime SDK. It runs during CI/build to produce artifacts that any language can consume (Markdown for IDEs, JSON for production). Runtime profile resolution and model merging happen at build time. If your project needs runtime dynamic resolution, see [#3 — Runtime SDK exploration](https://github.com/ERerGB/subagent-harness/issues/3).
 
 📖 **[Read the full story: Why AI Agents need a "Compiler" and Governance Flow](https://dev.to/jz_er/beyond-copy-paste-why-ai-agents-need-a-compiler-and-governance-flow-3dg0)**
 
