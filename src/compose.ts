@@ -1,21 +1,20 @@
-import type { RichAgentDocument, RuntimeTarget } from "./types.js";
+import type { RichAgentDocument, RuntimeTarget, ModelConfig } from "./types.js";
 
 /**
  * Compose a rich agent document into a runtime-ready artifact.
  *
- * Each runtime target gets a dedicated adapter:
- *   - cursor:      .md with minimal frontmatter (name + description)
- *   - claude-code: .md with CC-specific optional fields (maxTurns, model)
- *   - production:  .json with full frontmatter + body for programmatic consumption
+ * @param profile — Optional profile keyword to activate. When provided:
+ *   - cursor/CC: merge the profile's model override into top-level model
+ *   - production: emit a resolved single-profile JSON instead of full profiles
  */
-export function composeSubagent(doc: RichAgentDocument, target: RuntimeTarget): string {
+export function composeSubagent(doc: RichAgentDocument, target: RuntimeTarget, profile?: string): string {
   switch (target) {
     case "cursor":
       return composeCursorMarkdown(doc);
     case "claude-code":
-      return composeClaudeCodeMarkdown(doc);
+      return composeClaudeCodeMarkdown(doc, profile);
     case "production":
-      return composeProductionJSON(doc);
+      return composeProductionJSON(doc, profile);
     default: {
       const _exhaustive: never = target;
       throw new Error(`Unsupported target: ${_exhaustive}`);
@@ -23,7 +22,21 @@ export function composeSubagent(doc: RichAgentDocument, target: RuntimeTarget): 
   }
 }
 
-/** Cursor: minimal frontmatter — name + description + body. */
+/** Resolve the effective model config by merging top-level default with profile override. */
+function resolveModel(doc: RichAgentDocument, profileName?: string): ModelConfig | undefined {
+  const base = doc.frontmatter.model;
+  if (!profileName) return base;
+
+  const profileDef = doc.frontmatter.profiles?.profiles[profileName];
+  if (!profileDef?.model) return base;
+
+  // Shallow merge: profile overrides win, base fills gaps
+  return { ...base, ...profileDef.model } as ModelConfig;
+}
+
+// ── Cursor adapter ───────────────────────────────────────────────
+
+/** Cursor: minimal frontmatter — name + description + body. No model, no profiles. */
 function composeCursorMarkdown(doc: RichAgentDocument): string {
   return [
     "---",
@@ -36,21 +49,17 @@ function composeCursorMarkdown(doc: RichAgentDocument): string {
   ].join("\n");
 }
 
-/**
- * Claude Code: CC supports optional frontmatter beyond name/description.
- * Map what we can from the rich source:
- *   - maxIdleTurns → maxTurns (closest semantic match)
- * Fields we intentionally skip:
- *   - skills: CC skills are file references, not runtime capability names
- *   - tools: would need per-agent tool ACL design
- *   - model: defaults to inherit, which is correct for subagents
- */
-function composeClaudeCodeMarkdown(doc: RichAgentDocument): string {
+// ── Claude Code adapter ──────────────────────────────────────────
+
+function composeClaudeCodeMarkdown(doc: RichAgentDocument, profile?: string): string {
   const lines = [
     "---",
     `name: ${doc.frontmatter.name}`,
     `description: ${doc.frontmatter.description}`,
   ];
+
+  const model = resolveModel(doc, profile);
+  lines.push(`model: ${model?.name ?? "inherited"}`);
 
   const maxTurns = doc.frontmatter.config?.maxIdleTurns;
   if (maxTurns && maxTurns > 0) {
@@ -61,21 +70,35 @@ function composeClaudeCodeMarkdown(doc: RichAgentDocument): string {
   return lines.join("\n");
 }
 
-/**
- * Production: JSON with the full parsed document.
- * Consumers can JSON.parse() to get frontmatter + body without re-parsing YAML.
- */
-function composeProductionJSON(doc: RichAgentDocument): string {
-  return JSON.stringify({
+// ── Production adapter ───────────────────────────────────────────
+
+function composeProductionJSON(doc: RichAgentDocument, profile?: string): string {
+  const base: Record<string, unknown> = {
     name: doc.frontmatter.name,
     description: doc.frontmatter.description,
     archetype: doc.frontmatter.archetype,
     scenario: doc.frontmatter.scenario,
     adr: doc.frontmatter.adr,
-    contentSchema: doc.frontmatter.contentSchema,
-    config: doc.frontmatter.config,
-    skills: doc.frontmatter.skills,
-    prompt: doc.body.trim(),
-  }, null, 2) + "\n";
-}
+  };
 
+  if (profile) {
+    // Resolved mode: emit a single active profile with merged model
+    const resolved = resolveModel(doc, profile);
+    base.model = resolved ?? "inherited";
+    base.activeProfile = profile;
+    const profileDef = doc.frontmatter.profiles?.profiles[profile];
+    base.skills = profileDef?.skills ?? [];
+  } else {
+    // Full mode: emit all profiles for runtime dynamic selection
+    base.model = doc.frontmatter.model ?? "inherited";
+    if (doc.frontmatter.profiles) {
+      base.profiles = doc.frontmatter.profiles;
+    }
+  }
+
+  base.contentSchema = doc.frontmatter.contentSchema;
+  base.config = doc.frontmatter.config;
+  base.prompt = doc.body.trim();
+
+  return JSON.stringify(base, null, 2) + "\n";
+}

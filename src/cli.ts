@@ -151,7 +151,8 @@ function runCompose(files: string[], target: ComposeTarget, mode: Mode): { compo
 
     const validation = validateRichAgent(doc);
     if (!validation.ok) {
-      const codes = validation.issues.map(i => `${i.code}: ${i.message}`).join("; ");
+      const errors = validation.issues.filter(i => i.level === "error");
+      const codes = errors.map(i => `${i.code}: ${i.message}`).join("; ");
       console.error(`  SKIP ${file} (${codes})`);
       failed++;
       continue;
@@ -169,7 +170,7 @@ function runCompose(files: string[], target: ComposeTarget, mode: Mode): { compo
       continue;
     }
 
-    const output = composeSubagent(doc, target.runtime);
+    const output = composeSubagent(doc, target.runtime, target.profile);
     writeFileSync(dest, output, "utf8");
     console.log(`  COMPOSED: ${dest}`);
     composed++;
