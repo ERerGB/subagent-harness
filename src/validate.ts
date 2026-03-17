@@ -48,10 +48,11 @@ export function validateRichAgent(doc: RichAgentDocument): ValidationResult {
     }
 
     for (const [name, profile] of Object.entries(profiles)) {
-      if (!profile.skills || profile.skills.length === 0) {
+      // Explicit empty skills (`[]`) is valid for terminal/no-op profiles.
+      if (!profile.skills) {
         issues.push({
           code: "E_PROFILE_SKILLS",
-          message: `profile "${name}" must have at least one skill`,
+          message: `profile "${name}" must define skills array`,
           level: "error",
           path: `profiles.${name}.skills`,
         });

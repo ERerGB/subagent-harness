@@ -106,12 +106,11 @@ describe("validateRichAgent", () => {
     );
   });
 
-  it("fails when a profile has empty skills array", () => {
+  it("passes when a profile has empty skills array", () => {
     const result = parseAndValidate("invalid-empty-skills.agent.md");
-    expect(result.ok).toBe(false);
-    expect(result.issues).toContainEqual(
-      expect.objectContaining({ code: "E_PROFILE_SKILLS", level: "error" })
-    );
+    expect(result.ok).toBe(true);
+    const profileErrors = result.issues.filter(i => i.code === "E_PROFILE_SKILLS");
+    expect(profileErrors).toHaveLength(0);
   });
 
   // ── Level semantics ────────────────────────────────────────────

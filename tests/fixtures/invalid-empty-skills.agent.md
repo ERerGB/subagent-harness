@@ -7,4 +7,4 @@ profiles:
     skills: []
 ---
 
-This agent has an empty skills array and should fail validation.
+This agent has an explicit empty skills array for a terminal profile.
