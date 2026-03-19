@@ -43,6 +43,22 @@ describe("serializeAgent", () => {
     });
   });
 
+  // ── schemaVersion round-trip ────────────────────────────────────
+
+  it("round-trips schemaVersion when present", () => {
+    const doc = parseRichAgentMarkdown("test.md", readFixture("valid-with-schema-version.agent.md"));
+    expect(doc.frontmatter.schemaVersion).toBe("1");
+    const serialized = serializeAgent(doc);
+    const reparsed = parseRichAgentMarkdown("test.md", serialized);
+    expect(reparsed.frontmatter.schemaVersion).toBe("1");
+  });
+
+  it("omits schemaVersion line when not present", () => {
+    const doc = parseRichAgentMarkdown("test.md", readFixture("valid-minimal.agent.md"));
+    const serialized = serializeAgent(doc);
+    expect(serialized).not.toContain("schemaVersion");
+  });
+
   // ── Structural correctness ─────────────────────────────────────
 
   it("outputs valid frontmatter delimiters", () => {

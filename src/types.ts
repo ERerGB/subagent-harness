@@ -41,6 +41,7 @@ export interface ProfilesConfig {
 // ── Frontmatter ──────────────────────────────────────────────────
 
 export interface RichAgentFrontmatter {
+  schemaVersion?: string;
   name: string;
   description: string;
   model?: ModelConfig;
@@ -68,4 +69,12 @@ export interface ValidationIssue {
 export interface ValidationResult {
   ok: boolean;
   issues: ValidationIssue[];
+}
+
+/** Consumer-supplied validator for sidecar extension fields. */
+export type ExtensionValidator = (extensions: Record<string, unknown>) => ValidationIssue[];
+
+export interface ValidateOptions {
+  /** When provided, called to validate extension fields against a consumer schema. */
+  extensionValidator?: ExtensionValidator;
 }

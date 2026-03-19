@@ -275,10 +275,13 @@ function parseSubModelBlock(lines: string[], start: number, parentIndent: number
 function parseYamlLike(yaml: string): RichAgentFrontmatter {
   const lines = yaml.split("\n");
 
+  const schemaVersion = readOptionalScalar(lines, "schemaVersion");
   const name = readScalar(lines, "name");
   const description = readScalar(lines, "description");
   const model = parseModelConfig(lines);
   const profiles = parseProfiles(lines);
 
-  return { name, description, model, profiles };
+  const fm: RichAgentFrontmatter = { name, description, model, profiles };
+  if (schemaVersion !== undefined) fm.schemaVersion = schemaVersion;
+  return fm;
 }

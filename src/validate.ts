@@ -1,8 +1,20 @@
-import type { RichAgentDocument, ValidationIssue, ValidationResult, ModelConfig } from "./types.js";
+import type { RichAgentDocument, ValidationIssue, ValidationResult, ModelConfig, ValidateOptions } from "./types.js";
 
-export function validateRichAgent(doc: RichAgentDocument): ValidationResult {
+export const SUPPORTED_SCHEMA_VERSIONS = ["1"] as const;
+
+export function validateRichAgent(doc: RichAgentDocument, options?: ValidateOptions): ValidationResult {
   const issues: ValidationIssue[] = [];
   const f = doc.frontmatter;
+
+  // ── Schema version ───────────────────────────────────────────
+  if (f.schemaVersion && !(SUPPORTED_SCHEMA_VERSIONS as readonly string[]).includes(f.schemaVersion)) {
+    issues.push({
+      code: "W_SCHEMA_VERSION_UNKNOWN",
+      message: `schemaVersion "${f.schemaVersion}" is not recognized (supported: ${SUPPORTED_SCHEMA_VERSIONS.join(", ")})`,
+      level: "warning",
+      path: "schemaVersion",
+    });
+  }
 
   // ── Required scalars ─────────────────────────────────────────
   if (!/^[a-z0-9-]+$/.test(f.name)) {
@@ -62,6 +74,11 @@ export function validateRichAgent(doc: RichAgentDocument): ValidationResult {
         validateModelConfig(profile.model as ModelConfig, `profiles.${name}.model`, issues);
       }
     }
+  }
+
+  // ── Extension validation (consumer-supplied hook) ───────────
+  if (options?.extensionValidator) {
+    issues.push(...options.extensionValidator(doc.extensions));
   }
 
   const hasErrors = issues.some(i => i.level === "error");

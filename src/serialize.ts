@@ -7,6 +7,9 @@ import type { RichAgentDocument, ModelConfig, ProfilesConfig } from "./types.js"
 export function serializeAgent(doc: RichAgentDocument): string {
   const lines: string[] = ["---"];
 
+  if (doc.frontmatter.schemaVersion) {
+    lines.push(`schemaVersion: "${doc.frontmatter.schemaVersion}"`);
+  }
   lines.push(`name: ${doc.frontmatter.name}`);
   lines.push(`description: ${doc.frontmatter.description}`);
 

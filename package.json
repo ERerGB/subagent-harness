@@ -1,6 +1,6 @@
 {
   "name": "subagent-harness",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Parse, validate, and compose rich subagent definitions into runtime-specific formats.",
   "license": "Apache-2.0",
   "type": "module",

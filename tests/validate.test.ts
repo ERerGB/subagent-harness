@@ -1,11 +1,12 @@
 import { describe, it, expect } from "vitest";
 import { parseRichAgentMarkdown } from "../src/parse.js";
 import { validateRichAgent } from "../src/validate.js";
-import { readFixture } from "./helpers.js";
+import { readFixture, loadFixture } from "./helpers.js";
+import type { ValidateOptions, ValidationIssue } from "../src/types.js";
 
-function parseAndValidate(fixture: string) {
+function parseAndValidate(fixture: string, options?: ValidateOptions) {
   const doc = parseRichAgentMarkdown("test.md", readFixture(fixture));
-  return validateRichAgent(doc);
+  return validateRichAgent(doc, options);
 }
 
 describe("validateRichAgent", () => {
@@ -113,6 +114,24 @@ describe("validateRichAgent", () => {
     expect(profileErrors).toHaveLength(0);
   });
 
+  // ── Schema version ─────────────────────────────────────────────
+
+  it("passes when schemaVersion is a supported version", () => {
+    const result = parseAndValidate("valid-with-schema-version.agent.md");
+    const versionIssues = result.issues.filter(i => i.code === "W_SCHEMA_VERSION_UNKNOWN");
+    expect(versionIssues).toHaveLength(0);
+  });
+
+  it("emits W_SCHEMA_VERSION_UNKNOWN for unsupported version", () => {
+    const doc = parseRichAgentMarkdown("test.md", readFixture("valid-with-schema-version.agent.md"));
+    doc.frontmatter.schemaVersion = "99";
+    const result = validateRichAgent(doc);
+    expect(result.ok).toBe(true);
+    expect(result.issues).toContainEqual(
+      expect.objectContaining({ code: "W_SCHEMA_VERSION_UNKNOWN", level: "warning" })
+    );
+  });
+
   // ── Level semantics ────────────────────────────────────────────
 
   it("ok is determined by errors only, not warnings", () => {
@@ -120,5 +139,61 @@ describe("validateRichAgent", () => {
     const hasWarnings = result.issues.some(i => i.level === "warning");
     expect(hasWarnings).toBe(true);
     expect(result.ok).toBe(true);
+  });
+
+  // ── Extension validator hook ──────────────────────────────────
+
+  describe("extensionValidator hook", () => {
+    it("merges extension validator issues into result", () => {
+      const doc = loadFixture("valid-full.agent.md");
+      const extensionValidator: ValidateOptions["extensionValidator"] = (ext) => {
+        const issues: ValidationIssue[] = [];
+        if (!ext["archetype"]) {
+          issues.push({ code: "E_EXT_ARCHETYPE", message: "archetype is required", level: "error", path: "extensions.archetype" });
+        }
+        return issues;
+      };
+      // valid-full.agent.ext.yaml has archetype: analyzer → no errors expected
+      const result = validateRichAgent(doc, { extensionValidator });
+      expect(result.issues.filter(i => i.code === "E_EXT_ARCHETYPE")).toHaveLength(0);
+    });
+
+    it("extension validator errors make result.ok false", () => {
+      const doc = loadFixture("valid-full.agent.md");
+      // Override extensions to trigger the validator
+      doc.extensions = {};
+      const extensionValidator: ValidateOptions["extensionValidator"] = (ext) => {
+        const issues: ValidationIssue[] = [];
+        if (!ext["archetype"]) {
+          issues.push({ code: "E_EXT_ARCHETYPE", message: "archetype is required", level: "error", path: "extensions.archetype" });
+        }
+        return issues;
+      };
+      const result = validateRichAgent(doc, { extensionValidator });
+      expect(result.ok).toBe(false);
+      expect(result.issues).toContainEqual(
+        expect.objectContaining({ code: "E_EXT_ARCHETYPE", level: "error" })
+      );
+    });
+
+    it("extension validator warnings do not affect ok status", () => {
+      const doc = loadFixture("valid-full.agent.md");
+      const extensionValidator: ValidateOptions["extensionValidator"] = () => [
+        { code: "W_EXT_DEPRECATED", message: "field deprecated", level: "warning", path: "extensions.legacy" },
+      ];
+      const result = validateRichAgent(doc, { extensionValidator });
+      expect(result.ok).toBe(true);
+      expect(result.issues).toContainEqual(
+        expect.objectContaining({ code: "W_EXT_DEPRECATED" })
+      );
+    });
+
+    it("skips extension validation when no hook provided", () => {
+      const doc = loadFixture("valid-full.agent.md");
+      const result = validateRichAgent(doc);
+      // No extension-related issues should exist
+      const extIssues = result.issues.filter(i => i.code.startsWith("E_EXT_") || i.code.startsWith("W_EXT_"));
+      expect(extIssues).toHaveLength(0);
+    });
   });
 });

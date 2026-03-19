@@ -51,10 +51,23 @@ describe("parseRichAgentMarkdown", () => {
 
   // ── Core schema: no non-core fields ─────────────────────────────
 
-  it("frontmatter only contains core fields (name, description, model, profiles)", () => {
+  it("frontmatter only contains core fields when schemaVersion absent", () => {
     const doc = parseRichAgentMarkdown("test.md", readFixture("valid-full.agent.md"));
     const keys = Object.keys(doc.frontmatter);
     expect(keys.sort()).toEqual(["description", "model", "name", "profiles"].sort());
+  });
+
+  // ── schemaVersion ─────────────────────────────────────────────
+
+  it("parses optional schemaVersion when present", () => {
+    const doc = parseRichAgentMarkdown("test.md", readFixture("valid-with-schema-version.agent.md"));
+    expect(doc.frontmatter.schemaVersion).toBe("1");
+  });
+
+  it("omits schemaVersion key when not in frontmatter", () => {
+    const doc = parseRichAgentMarkdown("test.md", readFixture("valid-full.agent.md"));
+    expect(doc.frontmatter.schemaVersion).toBeUndefined();
+    expect("schemaVersion" in doc.frontmatter).toBe(false);
   });
 
   // ── Model Config pillar ────────────────────────────────────────
