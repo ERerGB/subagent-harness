@@ -255,11 +255,27 @@ This lets product runtime and IDE runtime consume the same SSOT file while keepi
 
 ---
 
+## Staying Updated
+
+> **Status:** Pre-RC. The format and API are stabilizing but not yet frozen. Follow releases to stay informed.
+
+subagent-harness uses **git tags and GitHub Releases** as the primary version signal. Choose whichever subscription method fits your workflow:
+
+| Method | How | Best for |
+|--------|-----|----------|
+| **Watch → Releases** | Click **Watch** on this repo → **Custom** → check **Releases only** | Lightweight human notification |
+| **Dependency automation** | Configure [Dependabot](https://docs.github.com/en/code-security/dependabot), [Renovate](https://docs.renovatebot.com/), or similar tools to monitor this repo's tags | Auto-PR when a new version is available |
+| **Downstream registry** | Add your project to [`downstream.json`](downstream.json) via PR | Receive an automated issue on each release |
+| **RSS** | Subscribe to `https://github.com/ERerGB/subagent-harness/releases.atom` | Feed reader integration |
+
+---
+
 ## Docs
 
 | Document | Purpose |
 |----------|---------|
 | [5-Minute Quickstart](docs/QUICKSTART_5_MIN.md) | Hands-on onboarding guide |
+| [YAML Subset](docs/YAML_SUBSET.md) | Supported YAML features and parser boundaries |
 | [Beta Feedback Form](docs/BETA_FEEDBACK.md) | Structured feedback for testers |
 | [Governance Agreement](docs/AGREEMENT.md) | Maintainer agreement & migration triggers |
 | [Governance Navigation](docs/GOVERNANCE.md) | Governance entry point |
