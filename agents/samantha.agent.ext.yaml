@@ -1,0 +1,4 @@
+archetype: companion
+scenario: creator
+adr: ADR-SAMANTHA
+source: https://github.com/leilei926524-tech/samantha

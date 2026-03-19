@@ -14,6 +14,8 @@
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json && node scripts/postbuild.js",
+    "compose": "node dist/cli.js",
+    "install:openclaw": "bash scripts/install-to-openclaw.sh",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:l1": "vitest run tests/e2e/e2e.test.ts",

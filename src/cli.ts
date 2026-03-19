@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
-import { readFileSync, writeFileSync, mkdirSync, rmSync, readdirSync, statSync, existsSync } from "node:fs";
-import { resolve, basename, join } from "node:path";
+import { readFileSync, writeFileSync, mkdirSync, rmSync, readdirSync, statSync, existsSync, cpSync } from "node:fs";
+import { resolve, basename, join, dirname } from "node:path";
 import { loadAgentFromDisk } from "./parse.js";
 import { validateRichAgent } from "./validate.js";
 import { composeSubagent } from "./compose.js";
@@ -16,6 +16,8 @@ interface ResolvedPlan {
   targets: ComposeTarget[];
   mode: Mode;
   pattern: string;
+  configDir: string;
+  skillsSrc: string | undefined;
 }
 
 // ---------------------------------------------------------------------------
@@ -57,6 +59,8 @@ function parseArgs(): ResolvedPlan {
     }
   }
 
+  const configDir = process.cwd();
+
   // If explicit --src/--dst provided, use single-target legacy mode
   if (src && dst) {
     return {
@@ -64,6 +68,8 @@ function parseArgs(): ResolvedPlan {
       targets: [{ runtime: "cursor" as RuntimeTarget, dst: resolve(dst) }],
       mode,
       pattern,
+      configDir,
+      skillsSrc: undefined,
     };
   }
 
@@ -77,9 +83,16 @@ function parseArgs(): ResolvedPlan {
     }
     return {
       src: resolve(config.src),
-      targets: config.targets.map(t => ({ ...t, dst: resolve(t.dst) })),
+      targets: config.targets.map(t => ({
+        ...t,
+        dst: resolve(t.dst),
+        skillsSrc: t.skillsSrc ?? config.skillsSrc,
+        skillsDst: t.skillsDst ? resolve(t.skillsDst) : undefined,
+      })),
       mode,
       pattern: config.pattern ?? pattern,
+      configDir,
+      skillsSrc: config.skillsSrc,
     };
   }
 
@@ -178,6 +191,57 @@ function runCompose(files: string[], target: ComposeTarget, mode: Mode): { compo
 }
 
 // ---------------------------------------------------------------------------
+// Skill bundling (issue #10)
+// ---------------------------------------------------------------------------
+
+function collectSkillNames(files: string[], srcDir: string): Set<string> {
+  const names = new Set<string>();
+  for (const file of files) {
+    let doc;
+    try {
+      doc = loadAgentFromDisk(file);
+    } catch {
+      continue;
+    }
+    const profiles = doc.frontmatter.profiles?.profiles;
+    if (!profiles) continue;
+    for (const p of Object.values(profiles)) {
+      for (const s of p.skills ?? []) {
+        if (s) names.add(s);
+      }
+    }
+  }
+  return names;
+}
+
+function runSkillBundle(
+  skillNames: Set<string>,
+  skillsSrc: string,
+  skillsDst: string,
+  mode: Mode
+): number {
+  let bundled = 0;
+  for (const name of skillNames) {
+    const srcDir = join(skillsSrc, name);
+    const destDir = join(skillsDst, name);
+    if (!existsSync(srcDir)) {
+      console.error(`  SKIP skill ${name} (E_SKILL_NOT_FOUND: ${srcDir})`);
+      continue;
+    }
+    if (mode === "dry-run") {
+      console.log(`  WOULD bundle skill: ${srcDir} -> ${destDir}`);
+      bundled++;
+      continue;
+    }
+    mkdirSync(destDir, { recursive: true });
+    cpSync(srcDir, destDir, { recursive: true });
+    console.log(`  BUNDLED: ${destDir}`);
+    bundled++;
+  }
+  return bundled;
+}
+
+// ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
 
@@ -193,6 +257,8 @@ function main(): void {
   let totalComposed = 0;
   let totalFailed = 0;
 
+  const skillNames = collectSkillNames(files, plan.src);
+
   for (const target of plan.targets) {
     console.log(`[${target.runtime}] source=${plan.src} target=${target.dst} mode=${plan.mode}`);
     mkdirSync(target.dst, { recursive: true });
@@ -204,6 +270,13 @@ function main(): void {
       const { composed, failed } = runCompose(files, target, plan.mode);
       totalComposed += composed;
       totalFailed += failed;
+    }
+
+    // Skill bundling when skillsSrc and skillsDst are set
+    const skillsSrc = target.skillsSrc ? resolve(plan.configDir, target.skillsSrc) : null;
+    if (target.skillsDst && skillsSrc && skillNames.size > 0) {
+      const bundled = runSkillBundle(skillNames, skillsSrc, target.skillsDst, plan.mode);
+      console.log(`  Bundled ${bundled} skill(s).`);
     }
     console.log("");
   }

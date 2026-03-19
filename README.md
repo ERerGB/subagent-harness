@@ -270,11 +270,25 @@ subagent-harness uses **git tags and GitHub Releases** as the primary version si
 
 ---
 
+## Samantha Mini-Test
+
+A small integration of the [Samantha project](https://github.com/leilei926524-tech/samantha) (emotional AI companion from *Her*) into subagent-harness:
+
+```bash
+pnpm compose --dry-run   # Preview
+pnpm compose --apply     # Compose to .cursor/agents
+```
+
+See [Samantha Quickstart](docs/SAMANTHA_QUICKSTART.md) for full walkthrough.
+
+---
+
 ## Docs
 
 | Document | Purpose |
 |----------|---------|
 | [5-Minute Quickstart](docs/QUICKSTART_5_MIN.md) | Hands-on onboarding guide |
+| [Samantha Quickstart](docs/SAMANTHA_QUICKSTART.md) | Samantha mini-test integration |
 | [YAML Subset](docs/YAML_SUBSET.md) | Supported YAML features and parser boundaries |
 | [Beta Feedback Form](docs/BETA_FEEDBACK.md) | Structured feedback for testers |
 | [Governance Agreement](docs/AGREEMENT.md) | Maintainer agreement & migration triggers |
