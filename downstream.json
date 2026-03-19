@@ -1,0 +1,17 @@
+{
+  "$schema": "./downstream.schema.json",
+  "consumers": [
+    {
+      "repo": "the-mag-tech/fulmail",
+      "dependencyType": "link",
+      "contact": "issue",
+      "notes": "link:../subagent-harness in root package.json"
+    },
+    {
+      "repo": "ERerGB/hacker",
+      "dependencyType": "structural",
+      "contact": "issue",
+      "notes": "Types mirrored in references/config-schema.ts"
+    }
+  ]
+}

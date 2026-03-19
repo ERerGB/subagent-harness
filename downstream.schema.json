@@ -1,0 +1,40 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Downstream Consumer Registry",
+  "description": "Known consumers of subagent-harness. Add your project via PR to receive automated release notifications.",
+  "type": "object",
+  "required": ["consumers"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "consumers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["repo", "dependencyType", "contact"],
+        "properties": {
+          "repo": {
+            "type": "string",
+            "description": "GitHub owner/repo",
+            "pattern": "^[\\w.-]+/[\\w.-]+$"
+          },
+          "dependencyType": {
+            "type": "string",
+            "enum": ["npm", "link", "git-submodule", "structural", "vendored"],
+            "description": "How this consumer depends on subagent-harness"
+          },
+          "contact": {
+            "type": "string",
+            "enum": ["issue", "none"],
+            "description": "Notification method on new releases"
+          },
+          "notes": {
+            "type": "string",
+            "description": "Free-form context about the dependency"
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

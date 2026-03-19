@@ -1,0 +1,69 @@
+name: Notify Downstream Consumers
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Notify registered consumers
+        env:
+          GH_TOKEN: ${{ secrets.DOWNSTREAM_NOTIFY_TOKEN }}
+        run: |
+          TAG="${{ github.event.release.tag_name }}"
+          URL="${{ github.event.release.html_url }}"
+          BODY="${{ github.event.release.body }}"
+
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::warning::DOWNSTREAM_NOTIFY_TOKEN not set — skipping notifications"
+            exit 0
+          fi
+
+          if [ ! -f downstream.json ]; then
+            echo "::warning::downstream.json not found — skipping"
+            exit 0
+          fi
+
+          COUNT=$(jq '.consumers | length' downstream.json)
+          echo "Found $COUNT registered consumers"
+
+          for i in $(seq 0 $((COUNT - 1))); do
+            REPO=$(jq -r ".consumers[$i].repo" downstream.json)
+            CONTACT=$(jq -r ".consumers[$i].contact" downstream.json)
+            DEP_TYPE=$(jq -r ".consumers[$i].dependencyType" downstream.json)
+
+            if [ "$CONTACT" != "issue" ]; then
+              echo "Skipping $REPO (contact: $CONTACT)"
+              continue
+            fi
+
+            echo "Notifying $REPO..."
+            gh issue create \
+              --repo "$REPO" \
+              --title "upstream: subagent-harness ${TAG} released" \
+              --body "$(cat <<EOF
+## Upstream Release Notice
+
+[\`subagent-harness\`](https://github.com/ERerGB/subagent-harness) **${TAG}** has been published.
+
+**Dependency type in this project:** \`${DEP_TYPE}\`
+
+### Release notes
+
+${BODY}
+
+---
+
+**Full release:** ${URL}
+
+*This issue was automatically created because this project is registered in [downstream.json](https://github.com/ERerGB/subagent-harness/blob/main/downstream.json). To stop receiving these notifications, submit a PR to change your \`contact\` field to \`"none"\`.*
+EOF
+            )" || echo "::warning::Failed to notify $REPO"
+          done
