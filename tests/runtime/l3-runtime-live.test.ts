@@ -8,6 +8,7 @@ import { composeSubagent } from "../../src/compose.js";
 
 const TEMPLATE_PATH = join(resolve(import.meta.dirname, "..", "e2e"), "template.agent.md");
 const PROD_CHECKER = join(resolve(import.meta.dirname), "production-runtime-check.mjs");
+const SUBJECT_PROBE = join(resolve(import.meta.dirname, "..", ".."), "scripts", "subject-sdk-probe.mjs");
 
 function requiredTargets(): Set<string> {
   const raw = process.env["L3_REQUIRE_TARGETS"] ?? "";
@@ -70,6 +71,32 @@ describe("L3 Runtime Live Smoke", () => {
       env: { ...process.env, AGENT_FILE: claudePath },
     });
     expect(run.status).toBe(0);
+  });
+
+  it("subject CLI runtime probe (optional, real env)", () => {
+    const cmd = process.env["SUBJECT_HARNESS_CLI_CMD"];
+    assertCommandAvailable("subject-cli", cmd);
+    if (!cmd) return;
+
+    const run = spawnSync("node", [SUBJECT_PROBE, "--probe", "cli", "--artifact", prodPath], {
+      encoding: "utf8",
+      env: { ...process.env },
+    });
+    expect(run.status).toBe(0);
+    expect(run.stdout).toContain("\"ok\":true");
+  });
+
+  it("subject API runtime probe (optional, real env)", () => {
+    const modulePath = process.env["SUBJECT_HARNESS_API_MODULE"];
+    assertCommandAvailable("subject-api", modulePath);
+    if (!modulePath) return;
+
+    const run = spawnSync("node", [SUBJECT_PROBE, "--probe", "api", "--artifact", prodPath], {
+      encoding: "utf8",
+      env: { ...process.env },
+    });
+    expect(run.status).toBe(0);
+    expect(run.stdout).toContain("\"ok\":true");
   });
 
   it("cleanup temp artifacts", () => {

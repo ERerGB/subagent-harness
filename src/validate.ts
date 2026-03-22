@@ -16,6 +16,16 @@ export function validateRichAgent(doc: RichAgentDocument, options?: ValidateOpti
     });
   }
 
+  // ── Agent version (optional runtime content version) ──────────
+  if (f.version !== undefined && !f.version.trim()) {
+    issues.push({
+      code: "E_VERSION",
+      message: "version must be a non-empty string when provided",
+      level: "error",
+      path: "version",
+    });
+  }
+
   // ── Required scalars ─────────────────────────────────────────
   if (!/^[a-z0-9-]+$/.test(f.name)) {
     issues.push({ code: "E_NAME", message: "name must be lowercase kebab-case", level: "error", path: "name" });

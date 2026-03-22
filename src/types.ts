@@ -48,6 +48,7 @@ export interface ProfilesConfig {
 
 export interface RichAgentFrontmatter {
   schemaVersion?: string;
+  version?: string;
   name: string;
   description: string;
   model?: ModelConfig;

@@ -79,6 +79,10 @@ function composeProductionJSON(doc: RichAgentDocument, profile?: string): string
     description: doc.frontmatter.description,
   };
 
+  if (doc.frontmatter.version) {
+    base.version = doc.frontmatter.version;
+  }
+
   // Spread extensions (consumer-specific fields like archetype, scenario, adr)
   for (const [key, value] of Object.entries(doc.extensions)) {
     base[key] = value;

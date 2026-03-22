@@ -28,6 +28,11 @@ describe("validateRichAgent", () => {
     expect(result.ok).toBe(true);
   });
 
+  it("passes validation for versioned agent", () => {
+    const result = parseAndValidate("valid-with-version.agent.md");
+    expect(result.ok).toBe(true);
+  });
+
   it("passes validation for profiles without model overrides", () => {
     const result = parseAndValidate("valid-profiles-no-override.agent.md");
     expect(result.ok).toBe(true);

@@ -1,0 +1,2 @@
+allowedTools: Bash,Read,Edit,Write,Grep,Glob,Agent,AskUserQuestion,WebSearch
+maxIdleTurns: 6

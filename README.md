@@ -157,6 +157,18 @@ Run all layers locally:
 pnpm test:e2e
 ```
 
+Run the reusable matrix runner (L1/L2 + strict production probe):
+```bash
+pnpm test:matrix
+```
+
+To include real Subject-Harness probes in strict mode:
+```bash
+SUBJECT_HARNESS_CLI_CMD='subject-harness run --artifact "$SUBJECT_ARTIFACT_PATH"' \
+SUBJECT_HARNESS_API_MODULE=./path/to/subject-api-probe.mjs \
+node scripts/run-matrix.mjs --targets "production,subject-cli,subject-api" --strict
+```
+
 ---
 
 ## Programmatic Embedding (CLI / Production)
@@ -243,6 +255,9 @@ See [Samantha Quickstart](docs/SAMANTHA_QUICKSTART.md) for full walkthrough.
 | [Governance Agreement](docs/AGREEMENT.md) | Maintainer agreement & migration triggers |
 | [Governance Navigation](docs/GOVERNANCE.md) | Governance entry point |
 | [Trusted Publishing](docs/TRUSTED_PUBLISHING.md) | npm publish via GitHub Actions OIDC |
+| [SDK Probe Contract](docs/SDK_PROBE_CONTRACT.md) | L3 real-runtime probe input/output and exit-code contract |
+| [Protocol Iteration Principles](docs/PROTOCOL_ITERATION_PRINCIPLES.md) | Lean core-protocol evolution rules |
+| [Project Structuring Worklog](docs/PROJECT_STRUCTURING_WORKLOG.md) | Project-by-project import and protocol observations |
 
 ## License
 

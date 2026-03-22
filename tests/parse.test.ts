@@ -64,10 +64,21 @@ describe("parseRichAgentMarkdown", () => {
     expect(doc.frontmatter.schemaVersion).toBe("1");
   });
 
+  it("parses optional version when present", () => {
+    const doc = parseRichAgentMarkdown("test.md", readFixture("valid-with-version.agent.md"));
+    expect(doc.frontmatter.version).toBe("2.0.0");
+  });
+
   it("omits schemaVersion key when not in frontmatter", () => {
     const doc = parseRichAgentMarkdown("test.md", readFixture("valid-full.agent.md"));
     expect(doc.frontmatter.schemaVersion).toBeUndefined();
     expect("schemaVersion" in doc.frontmatter).toBe(false);
+  });
+
+  it("omits version key when not in frontmatter", () => {
+    const doc = parseRichAgentMarkdown("test.md", readFixture("valid-full.agent.md"));
+    expect(doc.frontmatter.version).toBeUndefined();
+    expect("version" in doc.frontmatter).toBe(false);
   });
 
   // ── Model Config pillar ────────────────────────────────────────

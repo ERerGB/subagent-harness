@@ -85,6 +85,13 @@ describe("composeSubagent — Production runtime", () => {
     expect(json.adr).toBe("ADR-001");
   });
 
+  it("includes frontmatter version in production JSON when present", () => {
+    const doc = parseRichAgentMarkdown("test.md", readFixture("valid-with-version.agent.md"));
+    const out = composeSubagent(doc, "production");
+    const json = JSON.parse(out);
+    expect(json.version).toBe("2.0.0");
+  });
+
   it("omits extensions keys when no sidecar loaded", () => {
     const doc = parseRichAgentMarkdown("test.md", readFixture("valid-full.agent.md"));
     const out = composeSubagent(doc, "production");
