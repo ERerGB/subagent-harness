@@ -219,9 +219,15 @@ subagent-harness uses **git tags and GitHub Releases** as the primary version si
 
 ---
 
-## Samantha Mini-Test
+## Community Integrations & Examples
 
-A small integration of the [Samantha project](https://github.com/leilei926524-tech/samantha) (emotional AI companion from *Her*) into subagent-harness:
+The vision of `subagent-harness` is to be the universal compiler for open-source AI agent patterns. You can take any popular prompt or structured agent from the community, wrap it in a `.agent.md`, and deploy it everywhere.
+
+### 1. Community Prompts (e.g., awesome-cursorrules)
+Instead of manually copying flat rules from repositories like [PatrickJS/awesome-cursorrules](https://github.com/PatrickJS/awesome-cursorrules) or [instructa/ai-prompts](https://github.com/instructa/ai-prompts) into your `.cursorrules`, you can define them as `.agent.md` files. This allows you to manage and update community rules centrally, while the harness injects them natively into Cursor, Claude Code, or any other supported tool.
+
+### 2. Samantha Mini-Test
+A structural test integration of the [Samantha project](https://github.com/leilei926524-tech/samantha) (an emotional AI companion from *Her* with specific memory constraints, skills, and conversational parameters) into subagent-harness:
 
 ```bash
 pnpm compose --dry-run   # Preview
