@@ -1,11 +1,8 @@
 # subagent-harness
 
-> **Stop rewriting agents per runtime.**
-> Define once as SSOT, compose everywhere.
+> **Evolve your agent in one place. Use it anywhere.**
 
-A **build-time compiler** that parses, validates, and composes rich sub-agent definitions into runtime-specific agent files. It reads `.agent.md` sources and emits target-native formats — runtime consumers read the compiled output, not the source.
-
-> **Design boundary:** subagent-harness is a build tool, not a runtime SDK. It runs during CI/build to produce artifacts that any language can consume (Markdown for IDEs, JSON for production). Runtime profile resolution and model merging happen at build time. If your project needs runtime dynamic resolution, see [#3 — Runtime SDK exploration](https://github.com/ERerGB/subagent-harness/issues/3).
+Stop copy-pasting prompts across `.cursorrules`, Claude Code, and your CI pipelines. `subagent-harness` takes your single markdown file and auto-magically translates it for every AI tool you use.
 
 📖 **[Read the full story: Why AI Agents need a "Compiler" and Governance Flow](https://dev.to/jz_er/beyond-copy-paste-why-ai-agents-need-a-compiler-and-governance-flow-3dg0)**
 
@@ -48,14 +45,38 @@ flowchart LR
     style S fill:#22272e,stroke:#444c56,color:#c9d1d9
 ```
 
-## Demo Video
+## Supported Targets
 
-[Managing AI Agent Drift](docs/media/Managing_AI_Agent_Drift.mp4)
+| Target | Generated Format | Purpose |
+| ------ | ---------------- | ------- |
+| **Cursor** | `.cursor/agents/*.md` | Local IDE autocomplete & agent generation |
+| **Claude Code** | `.claude/skills/*.md` | Global CLI skills |
+| **Production** | `dist/agents/*.json` | CI/CD pipelines & backend SDK consumption |
 
-<video controls width="100%">
-  <source src="docs/media/Managing_AI_Agent_Drift.mp4" type="video/mp4" />
-  Your browser does not support the video tag.
-</video>
+*More integrations planned: Windsurf, Copilot, Cline.*
+
+---
+
+## How it works: The Output
+
+You write one file. The harness generates the rest.
+
+```text
+# 1. You write this (Single Source of Truth)
+my-agents/
+└── changelog-extractor.agent.md   
+
+# 2. Run subagent-harness
+$ pnpm exec subagent-compose --apply
+
+# 3. It generates these auto-magically:
+.cursor/agents/
+└── changelog-extractor.md         # Formatted natively for Cursor
+.claude/skills/
+└── changelog-extractor/SKILL.md   # Formatted natively for Claude Code
+dist/
+└── changelog-extractor.json       # Strict JSON for your backend/CI
+```
 
 ---
 
@@ -90,36 +111,11 @@ Developers now run a **stale local agent** that hallucinates, misses PR context,
 > **Root cause:** No Single Source of Truth. No automated composition.
 > Iterating on an agent _guarantees_ environment drift.
 
----
-
-## The Solution — A Governance Pipeline
-
-`subagent-harness` replaces manual copy-paste with a deterministic pipeline:
-
-```
-Source  ──▶  Audit  ──▶  Compose  ──▶  Smoke
-  │            │            │             │
-  │  rich      │  schema    │  strip &    │  IDE + production
-  │  .agent.md │  validate  │  generate   │  runtimes consume ✓
-```
-
-**How Bob fixes it:**
-
-1. **Single file** — He writes `changelog-extractor.agent.md` with the prompt, `temperature: 0.1`, and all three skills. This is the only copy.
-
+**How subagent-harness fixes it:**
+1. **Single file** — Write `changelog-extractor.agent.md` once. This is the only copy.
 2. **Auto-validate** — On commit, the harness checks structure and required fields.
-
-3. **Compose per runtime** — One command reads the SSOT. For CI, it emits full config. For Cursor, it strips proprietary fields and outputs a clean `.md`.
-
-4. **Zero drift** — Next iteration, Bob edits one file. `compose` propagates everywhere.
-
-**Result:**
-
-| Before | After |
-|--------|-------|
-| 2 copies, manual sync, silent drift | 1 source, automated compose, deterministic |
-| IDE agent lies vs production agent | IDE and production always match |
-| Adding a new runtime = copy-paste again | Adding a runtime = new adapter, source untouched |
+3. **Compose per runtime** — `compose` emits full config for CI, and stripped proprietary `.md` for Cursor.
+4. **Zero drift** — Next iteration, edit one file. The change propagates everywhere automatically.
 
 ---
 
@@ -140,12 +136,6 @@ pnpm exec subagent-compose \
   --src ~/my-custom-agents \
   --dst ~/.cursor/agents \
   --apply
-
-# 4. Verify idempotence — run again, nothing should change
-pnpm exec subagent-compose \
-  --src ~/my-custom-agents \
-  --dst ~/.cursor/agents \
-  --apply
 ```
 
 Reload your IDE window → open the Subagents list → your agent is discovered, formatted, and in sync with the SSOT.
@@ -154,57 +144,15 @@ Reload your IDE window → open the Subagents list → your agent is discovered,
 
 ---
 
-## E2E Testing Layers
+## Built-in Quality Gates
 
-To avoid false confidence, runtime verification is split into 3 layers:
+It's not just a format converter; it's a governance pipeline. Before any agent is compiled, it passes through 3 layers of tests to ensure absolute reliability:
 
-### L1 — Compose Pipeline Integration
+1. **Schema Validation (L1):** Prevents missing fields, broken YAML frontmatter, or syntax errors.
+2. **Runtime Contract (L2):** Ensures the generated output matches exactly what Cursor/Claude actually supports.
+3. **Live Smoke Check (L3):** (Optional) Boots up a real process to verify the compiled agent won't crash your IDE or backend.
 
-- Parse `.agent.md` + `.agent.ext.yaml`
-- Validate
-- Compose artifacts for Cursor / Claude Code / Production
-- Write + reload artifacts
-
-Command:
-
-```bash
-pnpm test:l1
-```
-
-### L2 — Runtime Format Compliance
-
-- Enforce output contracts (required/forbidden fields)
-- Catch adapter regressions before real runtime checks
-
-Command:
-
-```bash
-pnpm test:l2
-```
-
-### L3 — Live Runtime Smoke
-
-- **Production**: required in CI, real Node process loads and executes compiled artifact
-- **Cursor / Claude Code**: real-environment probe commands (optional by default)
-
-Command:
-
-```bash
-pnpm test:l3
-```
-
-Optional probe env vars for real local runtime checks:
-
-```bash
-export CURSOR_RUNTIME_CHECK_CMD='your-cursor-smoke-command-using-$AGENT_FILE'
-export CLAUDE_RUNTIME_CHECK_CMD='your-claude-smoke-command-using-$AGENT_FILE'
-
-# Optional strict mode (comma-separated): production,cursor,claude
-export L3_REQUIRE_TARGETS='production,cursor,claude'
-```
-
-Run all layers:
-
+Run all layers locally:
 ```bash
 pnpm test:e2e
 ```
@@ -213,7 +161,7 @@ pnpm test:e2e
 
 ## Programmatic Embedding (CLI / Production)
 
-`subagent-harness` is not only a compose CLI. You can import it as a package inside your own terminal app, backend worker, or release pipeline.
+`subagent-harness` is not only a CLI. You can import it as a package inside your own terminal app, backend worker, or release pipeline.
 
 ```ts
 import { readFileSync } from "node:fs";
@@ -245,13 +193,14 @@ This lets product runtime and IDE runtime consume the same SSOT file while keepi
 
 ---
 
-## References & Prior Art
+## Demo Video
 
-| Concept | Reference | How it relates |
-|---------|-----------|----------------|
-| **Prompt Drift** | [*Designing AI Features Without Prompt Drift*](https://dev.to/zywrap/designing-ai-features-without-prompt-drift-105b) | Describes the exact degradation pattern our SSOT model prevents |
-| **Git-as-Source-of-Truth** | [*Agentsmith Architecture*](https://agentsmith.dev/docs/core-concepts/architecture) | Advocates version-controlled prompts over UI-based delivery — we share this principle |
-| **IDE Format Portability** | [*Migrating Cursor Rules to AGENTS.md*](https://www.adithyan.io/blog/migrating-cursor-rules-to-agents) | Community exploration of breaking out of proprietary IDE formats — the gap we bridge |
+[Managing AI Agent Drift](docs/media/Managing_AI_Agent_Drift.mp4)
+
+<video controls width="100%">
+  <source src="docs/media/Managing_AI_Agent_Drift.mp4" type="video/mp4" />
+  Your browser does not support the video tag.
+</video>
 
 ---
 
