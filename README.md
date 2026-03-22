@@ -221,21 +221,13 @@ subagent-harness uses **git tags and GitHub Releases** as the primary version si
 
 ## Inspiration & Examples
 
-The vision of `subagent-harness` is to be the universal compiler for open-source AI agent patterns. An agent is rarely just a flat prompt—it is a combination of **Prompts + Tools (Skills/MCP) + Context + Config**. 
+The vision of `subagent-harness` is to be the universal compiler for open-source AI agent patterns. Here are some examples of what you can bundle:
 
-Here are examples of what you can bundle into a single `.agent.md` and deploy everywhere:
+### 1. Community Prompts (e.g. awesome-cursorrules)
+Instead of manually copying rules from [PatrickJS/awesome-cursorrules](https://github.com/PatrickJS/awesome-cursorrules) or [instructa/ai-prompts](https://github.com/instructa/ai-prompts) into your `.cursorrules` or `.clinerules`, you can define them as `.agent.md` and let the harness inject them into the right tool for your current workflow.
 
-### 1. Structured Agents (Prompt + MCP + Skills)
-Modern agents require tool access. Instead of manually configuring MCP servers in Claude Desktop, VS Code, and Cursor separately, you can define an agent comprehensively:
-*   **The "Web Researcher" Agent:** Bundles a `search` prompt + [Brave Search MCP](https://github.com/modelcontextprotocol/servers/tree/main/src/brave-search) + [Fetch MCP](https://github.com/modelcontextprotocol/servers/tree/main/src/fetch) + specific temperature configs.
-*   **The "Database Admin" Agent:** Bundles SQL conventions + [Postgres MCP](https://github.com/modelcontextprotocol/servers/tree/main/src/postgres) + local DB connection strings.
-*   **(See [awesome-mcp-servers](https://github.com/mctrinh/awesome-mcp-servers) or [awesome-agent-toolkit](https://github.com/Bosh-Kuo/awesome-agent-toolkit) for community tool/skill collections that can be packaged this way.)**
-
-### 2. Community Prompts & Rules
-Instead of manually copying flat rules from [PatrickJS/awesome-cursorrules](https://github.com/PatrickJS/awesome-cursorrules) or [instructa/ai-prompts](https://github.com/instructa/ai-prompts) into your `.cursorrules`, define them as `.agent.md` and let the harness inject them into the right tool for your current workflow.
-
-### 3. Samantha Mini-Test
-A structural test integration of the [Samantha project](https://github.com/leilei926524-tech/samantha) (an emotional AI companion from *Her* with specific memory constraints, skills, and conversational parameters) into subagent-harness:
+### 2. Samantha Mini-Test
+A small integration of the [Samantha project](https://github.com/leilei926524-tech/samantha) (emotional AI companion from *Her*) into subagent-harness:
 
 ```bash
 pnpm compose --dry-run   # Preview
