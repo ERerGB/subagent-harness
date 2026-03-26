@@ -11,14 +11,22 @@ const CONFIG_FILENAME = "subagent.config.json";
 
 type Mode = "dry-run" | "apply" | "clean";
 
+type PlanSource = "legacy" | "config";
+
 interface ResolvedPlan {
   src: string;
   targets: ComposeTarget[];
+  /** Parsed `--target` values; empty means "all runtimes". */
+  targetFilter: string[];
+  planSource: PlanSource;
   mode: Mode;
   pattern: string;
   configDir: string;
   skillsSrc: string | undefined;
 }
+
+const KNOWN_RUNTIMES: readonly RuntimeTarget[] = ["cursor", "codex", "claude-code", "production"];
+const KNOWN_RUNTIME_SET = new Set<string>(KNOWN_RUNTIMES);
 
 // ---------------------------------------------------------------------------
 // Arg parsing — supports both explicit flags and config-file discovery
@@ -30,6 +38,7 @@ function parseArgs(): ResolvedPlan {
   let dst = process.env["AGENTS_DST"] ?? "";
   let mode: Mode = "dry-run";
   let pattern = process.env["AGENTS_PATTERN"] ?? "*.agent.md";
+  const targetFilter: string[] = [];
 
   for (let i = 0; i < argv.length; i++) {
     switch (argv[i]) {
@@ -42,6 +51,15 @@ function parseArgs(): ResolvedPlan {
       case "--pattern":
         pattern = argv[++i] ?? "";
         break;
+      case "--target": {
+        const v = argv[++i];
+        if (v === undefined || v.startsWith("-")) {
+          console.error("E_COMPOSE_ARG: --target requires a runtime name (e.g. cursor, codex, production)");
+          process.exit(2);
+        }
+        targetFilter.push(v);
+        break;
+      }
       case "--apply":
         mode = "apply";
         break;
@@ -66,6 +84,8 @@ function parseArgs(): ResolvedPlan {
     return {
       src: resolve(src),
       targets: [{ runtime: "cursor" as RuntimeTarget, dst: resolve(dst) }],
+      targetFilter,
+      planSource: "legacy",
       mode,
       pattern,
       configDir,
@@ -89,6 +109,8 @@ function parseArgs(): ResolvedPlan {
         skillsSrc: t.skillsSrc ?? config.skillsSrc,
         skillsDst: t.skillsDst ? resolve(t.skillsDst) : undefined,
       })),
+      targetFilter,
+      planSource: "config",
       mode,
       pattern: config.pattern ?? pattern,
       configDir,
@@ -98,6 +120,55 @@ function parseArgs(): ResolvedPlan {
 
   console.error("E_COMPOSE_ARG: provide --src/--dst flags, or create subagent.config.json in project root.");
   process.exit(2);
+}
+
+/**
+ * Apply `--target` filters from the CLI. Empty filter or `all` selects every configured target.
+ */
+function selectActiveTargets(plan: ResolvedPlan): ComposeTarget[] {
+  const raw = plan.targetFilter;
+  const hasAll = raw.includes("all");
+  const specifics = raw.filter(t => t !== "all");
+
+  if (hasAll && specifics.length > 0) {
+    console.error("E_COMPOSE_ARG: --target all cannot be combined with other runtimes");
+    process.exit(2);
+  }
+
+  const useAll = raw.length === 0 || hasAll;
+
+  if (!useAll) {
+    for (const name of specifics) {
+      if (!KNOWN_RUNTIME_SET.has(name)) {
+        console.error(`E_COMPOSE_TARGET: unknown runtime '${name}' (expected one of: ${KNOWN_RUNTIMES.join(", ")}, all)`);
+        process.exit(2);
+      }
+    }
+  }
+
+  if (plan.planSource === "legacy") {
+    if (useAll) {
+      return plan.targets;
+    }
+    for (const name of specifics) {
+      if (name !== "cursor") {
+        console.error("E_COMPOSE_TARGET: --src/--dst legacy mode only supports --target cursor or --target all");
+        process.exit(2);
+      }
+    }
+    return plan.targets;
+  }
+
+  if (useAll) {
+    return plan.targets;
+  }
+
+  const active = plan.targets.filter(t => specifics.includes(t.runtime));
+  if (active.length === 0) {
+    console.error(`E_COMPOSE_TARGET: no configured targets match: ${specifics.join(", ")}`);
+    process.exit(2);
+  }
+  return active;
 }
 
 // ---------------------------------------------------------------------------
@@ -247,6 +318,7 @@ function runSkillBundle(
 
 function main(): void {
   const plan = parseArgs();
+  const activeTargets = selectActiveTargets(plan);
 
   if (!existsSync(plan.src)) {
     console.error(`E_COMPOSE_SRC: source directory not found: ${plan.src}`);
@@ -259,7 +331,7 @@ function main(): void {
 
   const skillNames = collectSkillNames(files, plan.src);
 
-  for (const target of plan.targets) {
+  for (const target of activeTargets) {
     console.log(`[${target.runtime}] source=${plan.src} target=${target.dst} mode=${plan.mode}`);
     mkdirSync(target.dst, { recursive: true });
 

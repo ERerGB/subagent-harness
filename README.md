@@ -143,6 +143,16 @@ pnpm exec subagent-compose \
 
 Reload your IDE window → open the Subagents list → your agent is discovered, formatted, and in sync with the SSOT.
 
+With `subagent.config.json`, compose only selected runtimes ([issue #14](https://github.com/ERerGB/subagent-harness/issues/14)):
+
+```bash
+pnpm exec subagent-compose --apply --target codex
+pnpm exec subagent-compose --apply --target cursor --target production
+pnpm exec subagent-compose --apply --target all   # same as omitting --target
+```
+
+`--src` / `--dst` legacy mode only allows `--target cursor` or `--target all`.
+
 > Full walkthrough: **[5-Minute Quickstart](docs/QUICKSTART_5_MIN.md)**
 
 ---
