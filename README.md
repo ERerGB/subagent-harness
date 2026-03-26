@@ -172,6 +172,8 @@ SUBJECT_HARNESS_API_MODULE=./path/to/subject-api-probe.mjs \
 node scripts/run-matrix.mjs --targets "production,subject-cli,subject-api" --strict
 ```
 
+Optional L3 probes for composed Markdown agents: set `CURSOR_RUNTIME_CHECK_CMD`, `CODEX_RUNTIME_CHECK_CMD`, or `CLAUDE_RUNTIME_CHECK_CMD` to a shell command; `pnpm test:l3` passes `AGENT_FILE` pointing at the temp artifact. To **require** a probe (fail CI if unset), add that target to `L3_REQUIRE_TARGETS` (comma-separated, e.g. `production,codex`).
+
 ---
 
 ## Programmatic Embedding (CLI / Production)

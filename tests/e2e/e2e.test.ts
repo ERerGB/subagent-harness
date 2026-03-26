@@ -96,9 +96,49 @@ describe("E2E — Cursor runtime", () => {
   it("re-read matches written content", () => {
     expect(readFileSync(cursorPath, "utf8")).toBe(cursorOutput);
   });
+});
 
-  it("codex runtime matches cursor markdown (OpenAI Codex CLI — issue #13)", () => {
-    expect(composeSubagent(doc, "codex")).toBe(cursorOutput);
+// ═══════════════════════════════════════════════════════════════════
+// Codex runtime (same markdown contract as Cursor — issue #13)
+// ═══════════════════════════════════════════════════════════════════
+
+describe("E2E — Codex runtime", () => {
+  let codexPath: string;
+  let codexOutput: string;
+
+  beforeAll(() => {
+    codexOutput = composeSubagent(doc, "codex");
+    codexPath = join(tmpDir, "codex.md");
+    writeFileSync(codexPath, codexOutput, "utf8");
+  });
+
+  it("writes Codex-format Markdown file (minimal frontmatter)", () => {
+    expect(existsSync(codexPath)).toBe(true);
+  });
+
+  it("Codex frontmatter contains name and description", () => {
+    const fm = parseFrontmatter(codexOutput);
+    expect(fm.name).toBe("e2e-template");
+    expect(fm.description).toBeTruthy();
+  });
+
+  it("Codex output does not contain model or profiles", () => {
+    expect(codexOutput).not.toContain("model:");
+    expect(codexOutput).not.toContain("profiles:");
+  });
+
+  it("Codex output contains prompt body", () => {
+    const body = extractBody(codexOutput);
+    expect(body).toContain("end-to-end test agent");
+  });
+
+  it("re-read matches written content", () => {
+    expect(readFileSync(codexPath, "utf8")).toBe(codexOutput);
+  });
+
+  it("matches Cursor adapter output byte-for-byte", () => {
+    const cursorOutput = composeSubagent(doc, "cursor");
+    expect(codexOutput).toBe(cursorOutput);
   });
 });
 

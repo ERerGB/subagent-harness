@@ -25,6 +25,7 @@ function assertCommandAvailable(target: string, command: string | undefined): vo
 describe("L3 Runtime Live Smoke", () => {
   let dir = "";
   let cursorPath = "";
+  let codexPath = "";
   let claudePath = "";
   let prodPath = "";
 
@@ -33,10 +34,12 @@ describe("L3 Runtime Live Smoke", () => {
     const doc = loadAgentFromDisk(TEMPLATE_PATH);
 
     cursorPath = join(dir, "cursor.md");
+    codexPath = join(dir, "codex.md");
     claudePath = join(dir, "claude.md");
     prodPath = join(dir, "production.json");
 
     writeFileSync(cursorPath, composeSubagent(doc, "cursor"), "utf8");
+    writeFileSync(codexPath, composeSubagent(doc, "codex"), "utf8");
     writeFileSync(claudePath, composeSubagent(doc, "claude-code"), "utf8");
     writeFileSync(prodPath, composeSubagent(doc, "production"), "utf8");
   });
@@ -56,6 +59,19 @@ describe("L3 Runtime Live Smoke", () => {
       shell: true,
       encoding: "utf8",
       env: { ...process.env, AGENT_FILE: cursorPath },
+    });
+    expect(run.status).toBe(0);
+  });
+
+  it("codex runtime command probe (optional, real env)", () => {
+    const cmd = process.env["CODEX_RUNTIME_CHECK_CMD"];
+    assertCommandAvailable("codex", cmd);
+    if (!cmd) return;
+
+    const run = spawnSync(cmd, {
+      shell: true,
+      encoding: "utf8",
+      env: { ...process.env, AGENT_FILE: codexPath },
     });
     expect(run.status).toBe(0);
   });
