@@ -1,5 +1,5 @@
 // Supported compose targets.
-export type RuntimeTarget = "cursor" | "claude-code" | "production";
+export type RuntimeTarget = "cursor" | "codex" | "claude-code" | "production";
 
 export interface ComposeTarget {
   runtime: RuntimeTarget;

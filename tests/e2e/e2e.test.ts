@@ -96,6 +96,10 @@ describe("E2E — Cursor runtime", () => {
   it("re-read matches written content", () => {
     expect(readFileSync(cursorPath, "utf8")).toBe(cursorOutput);
   });
+
+  it("codex runtime matches cursor markdown (OpenAI Codex CLI — issue #13)", () => {
+    expect(composeSubagent(doc, "codex")).toBe(cursorOutput);
+  });
 });
 
 // ═══════════════════════════════════════════════════════════════════

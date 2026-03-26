@@ -50,6 +50,7 @@ flowchart LR
 | Target | Generated Format | Purpose |
 | ------ | ---------------- | ------- |
 | **Cursor** | `.cursor/agents/*.md` | Local IDE autocomplete & agent generation |
+| **Codex** | `.codex/agents/*.md` | OpenAI Codex CLI (`codex exec --instructions`); same markdown shape as Cursor |
 | **Claude Code** | `.claude/skills/*.md` | Global CLI skills |
 | **Production** | `dist/agents/*.json` | CI/CD pipelines & backend SDK consumption |
 
@@ -72,6 +73,8 @@ $ pnpm exec subagent-compose --apply
 # 3. It generates these auto-magically:
 .cursor/agents/
 └── changelog-extractor.md         # Formatted natively for Cursor
+.codex/agents/
+└── changelog-extractor.md         # Same markdown; OpenAI Codex CLI (`runtime: codex` in config)
 .claude/skills/
 └── changelog-extractor/SKILL.md   # Formatted natively for Claude Code
 dist/
@@ -195,8 +198,9 @@ if (!validation.ok) {
   );
 }
 
-// Built-in v0 target
+// Built-in targets
 const cursorAgent = composeSubagent(doc, "cursor");
+const codexAgent = composeSubagent(doc, "codex"); // same markdown as cursor; use with `.codex/agents/`
 
 // You can also map `doc.frontmatter` + `doc.body` into your own runtime schema.
 ```

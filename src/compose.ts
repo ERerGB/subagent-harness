@@ -4,12 +4,15 @@ import type { RichAgentDocument, RuntimeTarget, ModelConfig } from "./types.js";
  * Compose a rich agent document into a runtime-ready artifact.
  *
  * @param profile — Optional profile keyword to activate. When provided:
- *   - cursor/CC: merge the profile's model override into top-level model
+ *   - claude-code: merge the profile's model override into top-level model
  *   - production: emit a resolved single-profile JSON instead of full profiles
+ *   - cursor / codex: profile is ignored (minimal markdown has no model slot)
  */
 export function composeSubagent(doc: RichAgentDocument, target: RuntimeTarget, profile?: string): string {
   switch (target) {
     case "cursor":
+    case "codex":
+      // Codex CLI consumes the same name/description/body frontmatter shape as Cursor agents.
       return composeCursorMarkdown(doc);
     case "claude-code":
       return composeClaudeCodeMarkdown(doc, profile);
@@ -34,9 +37,9 @@ export function resolveModel(doc: RichAgentDocument, profileName?: string): Mode
   return { ...base, ...profileDef.model } as ModelConfig;
 }
 
-// ── Cursor adapter ───────────────────────────────────────────────
+// ── Cursor / Codex adapter (minimal markdown) ───────────────────
 
-/** Cursor: minimal frontmatter — name + description + body. No model, no profiles. */
+/** Minimal frontmatter — name + description + body. No model, no profiles. */
 function composeCursorMarkdown(doc: RichAgentDocument): string {
   return [
     "---",

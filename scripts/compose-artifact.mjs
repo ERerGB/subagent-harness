@@ -21,7 +21,7 @@ if (!agentPath || !outputPath) {
   process.exit(2);
 }
 
-if (!["cursor", "claude-code", "production"].includes(runtime)) {
+if (!["cursor", "codex", "claude-code", "production"].includes(runtime)) {
   console.error(`E_COMPOSE_ARTIFACT_RUNTIME: unsupported runtime '${runtime}'`);
   process.exit(2);
 }

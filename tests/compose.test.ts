@@ -19,6 +19,11 @@ describe("composeSubagent — Cursor runtime", () => {
     expect(out).not.toContain("profiles:");
     expect(out).not.toContain("temperature:");
   });
+
+  it("codex target matches cursor output byte-for-byte (issue #13)", () => {
+    const doc = parseRichAgentMarkdown("test.md", readFixture("valid-full.agent.md"));
+    expect(composeSubagent(doc, "codex")).toBe(composeSubagent(doc, "cursor"));
+  });
 });
 
 describe("composeSubagent — Claude Code runtime", () => {
