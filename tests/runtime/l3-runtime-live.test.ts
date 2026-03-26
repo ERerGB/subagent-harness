@@ -10,6 +10,9 @@ const TEMPLATE_PATH = join(resolve(import.meta.dirname, "..", "e2e"), "template.
 const PROD_CHECKER = join(resolve(import.meta.dirname), "production-runtime-check.mjs");
 const SUBJECT_PROBE = join(resolve(import.meta.dirname, "..", ".."), "scripts", "subject-sdk-probe.mjs");
 
+/** Real IDE/CLI probes may run a full agent turn; default Vitest 5s is too tight. */
+const L3_MARKDOWN_PROBE_TIMEOUT_MS = 300_000;
+
 function requiredTargets(): Set<string> {
   const raw = process.env["L3_REQUIRE_TARGETS"] ?? "";
   return new Set(raw.split(",").map(s => s.trim()).filter(Boolean));
@@ -50,44 +53,56 @@ describe("L3 Runtime Live Smoke", () => {
     expect(run.stdout).toContain("\"ok\":true");
   });
 
-  it("cursor runtime command probe (optional, real env)", () => {
-    const cmd = process.env["CURSOR_RUNTIME_CHECK_CMD"];
-    assertCommandAvailable("cursor", cmd);
-    if (!cmd) return;
+  it(
+    "cursor runtime command probe (optional, real env)",
+    () => {
+      const cmd = process.env["CURSOR_RUNTIME_CHECK_CMD"];
+      assertCommandAvailable("cursor", cmd);
+      if (!cmd) return;
 
-    const run = spawnSync(cmd, {
-      shell: true,
-      encoding: "utf8",
-      env: { ...process.env, AGENT_FILE: cursorPath },
-    });
-    expect(run.status).toBe(0);
-  });
+      const run = spawnSync(cmd, {
+        shell: true,
+        encoding: "utf8",
+        env: { ...process.env, AGENT_FILE: cursorPath },
+      });
+      expect(run.status).toBe(0);
+    },
+    L3_MARKDOWN_PROBE_TIMEOUT_MS,
+  );
 
-  it("codex runtime command probe (optional, real env)", () => {
-    const cmd = process.env["CODEX_RUNTIME_CHECK_CMD"];
-    assertCommandAvailable("codex", cmd);
-    if (!cmd) return;
+  it(
+    "codex runtime command probe (optional, real env)",
+    () => {
+      const cmd = process.env["CODEX_RUNTIME_CHECK_CMD"];
+      assertCommandAvailable("codex", cmd);
+      if (!cmd) return;
 
-    const run = spawnSync(cmd, {
-      shell: true,
-      encoding: "utf8",
-      env: { ...process.env, AGENT_FILE: codexPath },
-    });
-    expect(run.status).toBe(0);
-  });
+      const run = spawnSync(cmd, {
+        shell: true,
+        encoding: "utf8",
+        env: { ...process.env, AGENT_FILE: codexPath },
+      });
+      expect(run.status).toBe(0);
+    },
+    L3_MARKDOWN_PROBE_TIMEOUT_MS,
+  );
 
-  it("claude runtime command probe (optional, real env)", () => {
-    const cmd = process.env["CLAUDE_RUNTIME_CHECK_CMD"];
-    assertCommandAvailable("claude", cmd);
-    if (!cmd) return;
+  it(
+    "claude runtime command probe (optional, real env)",
+    () => {
+      const cmd = process.env["CLAUDE_RUNTIME_CHECK_CMD"];
+      assertCommandAvailable("claude", cmd);
+      if (!cmd) return;
 
-    const run = spawnSync(cmd, {
-      shell: true,
-      encoding: "utf8",
-      env: { ...process.env, AGENT_FILE: claudePath },
-    });
-    expect(run.status).toBe(0);
-  });
+      const run = spawnSync(cmd, {
+        shell: true,
+        encoding: "utf8",
+        env: { ...process.env, AGENT_FILE: claudePath },
+      });
+      expect(run.status).toBe(0);
+    },
+    L3_MARKDOWN_PROBE_TIMEOUT_MS,
+  );
 
   it("subject CLI runtime probe (optional, real env)", () => {
     const cmd = process.env["SUBJECT_HARNESS_CLI_CMD"];
