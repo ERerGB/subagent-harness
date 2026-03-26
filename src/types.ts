@@ -1,16 +1,22 @@
 // Supported compose targets.
-export type RuntimeTarget = "cursor" | "claude-code" | "production";
+export type RuntimeTarget = "cursor" | "codex" | "claude-code" | "production";
 
 export interface ComposeTarget {
   runtime: RuntimeTarget;
   dst: string;
   profile?: string;
+  /** Source dir for skills (e.g. "skills" or ".cursor/skills"). Resolved relative to config dir. */
+  skillsSrc?: string;
+  /** Destination dir for bundled skills (e.g. "../openclaw/skills"). When set, copies referenced skills. */
+  skillsDst?: string;
 }
 
 export interface SubagentConfig {
   src: string;
   pattern?: string;
   targets: ComposeTarget[];
+  /** Default skillsSrc when target omits it. */
+  skillsSrc?: string;
 }
 
 // ── Model Config pillar ──────────────────────────────────────────
@@ -42,6 +48,7 @@ export interface ProfilesConfig {
 
 export interface RichAgentFrontmatter {
   schemaVersion?: string;
+  version?: string;
   name: string;
   description: string;
   model?: ModelConfig;

@@ -19,6 +19,11 @@ describe("composeSubagent — Cursor runtime", () => {
     expect(out).not.toContain("profiles:");
     expect(out).not.toContain("temperature:");
   });
+
+  it("codex target matches cursor output byte-for-byte (issue #13)", () => {
+    const doc = parseRichAgentMarkdown("test.md", readFixture("valid-full.agent.md"));
+    expect(composeSubagent(doc, "codex")).toBe(composeSubagent(doc, "cursor"));
+  });
 });
 
 describe("composeSubagent — Claude Code runtime", () => {
@@ -83,6 +88,13 @@ describe("composeSubagent — Production runtime", () => {
     expect(json.archetype).toBe("analyzer");
     expect(json.scenario).toBe("meeting");
     expect(json.adr).toBe("ADR-001");
+  });
+
+  it("includes frontmatter version in production JSON when present", () => {
+    const doc = parseRichAgentMarkdown("test.md", readFixture("valid-with-version.agent.md"));
+    const out = composeSubagent(doc, "production");
+    const json = JSON.parse(out);
+    expect(json.version).toBe("2.0.0");
   });
 
   it("omits extensions keys when no sidecar loaded", () => {

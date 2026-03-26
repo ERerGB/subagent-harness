@@ -64,10 +64,21 @@ describe("parseRichAgentMarkdown", () => {
     expect(doc.frontmatter.schemaVersion).toBe("1");
   });
 
+  it("parses optional version when present", () => {
+    const doc = parseRichAgentMarkdown("test.md", readFixture("valid-with-version.agent.md"));
+    expect(doc.frontmatter.version).toBe("2.0.0");
+  });
+
   it("omits schemaVersion key when not in frontmatter", () => {
     const doc = parseRichAgentMarkdown("test.md", readFixture("valid-full.agent.md"));
     expect(doc.frontmatter.schemaVersion).toBeUndefined();
     expect("schemaVersion" in doc.frontmatter).toBe(false);
+  });
+
+  it("omits version key when not in frontmatter", () => {
+    const doc = parseRichAgentMarkdown("test.md", readFixture("valid-full.agent.md"));
+    expect(doc.frontmatter.version).toBeUndefined();
+    expect("version" in doc.frontmatter).toBe(false);
   });
 
   // ── Model Config pillar ────────────────────────────────────────
@@ -152,7 +163,31 @@ describe("parseExtensionsYaml", () => {
 
   it("parses nested block fields", () => {
     const ext = parseExtensionsYaml("evolution:\n  engine: hacker\n  cycle: 12\n");
-    expect(ext.evolution).toEqual({ engine: "hacker", cycle: "12" });
+    expect(ext.evolution).toEqual({ engine: "hacker", cycle: 12 });
+  });
+
+  // Regression: GitHub #12 — inline flow maps and deep nesting must not collapse to strings.
+  it("parses inline flow maps, nested mappings, and numeric scalars (issue #12)", () => {
+    const ext = parseExtensionsYaml(`
+contentSchema:
+  quote: string
+  context: string
+  speaker: string
+config:
+  confidence: { high: 0.85, medium: 0.65, low: 0.45 }
+  prefetch: { level: L1_FAST, maxConcurrent: 2, maxHitDistance: 1 }
+  maxIdleTurns: 0
+`);
+    expect(ext.contentSchema).toEqual({
+      quote: "string",
+      context: "string",
+      speaker: "string",
+    });
+    expect(ext.config).toEqual({
+      confidence: { high: 0.85, medium: 0.65, low: 0.45 },
+      prefetch: { level: "L1_FAST", maxConcurrent: 2, maxHitDistance: 1 },
+      maxIdleTurns: 0,
+    });
   });
 
   it("ignores comment lines", () => {
@@ -164,6 +199,14 @@ describe("parseExtensionsYaml", () => {
   it("returns empty object for empty content", () => {
     expect(parseExtensionsYaml("")).toEqual({});
     expect(parseExtensionsYaml("\n\n")).toEqual({});
+  });
+
+  it("rejects non-mapping root", () => {
+    expect(() => parseExtensionsYaml("- item\n")).toThrow(/root must be a YAML mapping/);
+  });
+
+  it("wraps YAML syntax errors", () => {
+    expect(() => parseExtensionsYaml("foo: [unclosed")).toThrow(/Failed to parse \.agent\.ext\.yaml/);
   });
 });
 
@@ -189,6 +232,6 @@ describe("loadAgentFromDisk", () => {
   it("merges nested extension blocks", () => {
     const doc = loadAgentFromDisk(join(FIXTURES_DIR, "valid-generic.agent.md"));
     expect(doc.extensions.scenario).toBe("prompt-evolution");
-    expect(doc.extensions.evolution).toEqual({ engine: "hacker", cycle: "0" });
+    expect(doc.extensions.evolution).toEqual({ engine: "hacker", cycle: 0 });
   });
 });

@@ -1,0 +1,12 @@
+{
+  "src": "agents",
+  "pattern": "*.agent.md",
+  "skillsSrc": "skills",
+  "targets": [
+    {
+      "runtime": "cursor",
+      "dst": ".cursor/agents",
+      "skillsDst": ".cursor/skills"
+    }
+  ]
+}

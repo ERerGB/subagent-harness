@@ -1,4 +1,5 @@
 import { readFileSync, existsSync } from "node:fs";
+import { parse as parseYamlDocument } from "yaml";
 import type { RichAgentDocument, RichAgentFrontmatter, ModelConfig, ProfilesConfig, AgentProfile } from "./types.js";
 
 const FM = /^---\n([\s\S]*?)\n---\n?([\s\S]*)$/;
@@ -20,45 +21,30 @@ export function parseRichAgentMarkdown(sourcePath: string, content: string): Ric
 
 /**
  * Parse a `.agent.ext.yaml` string into an extensions record.
- * Uses the same shallow YAML parser for top-level scalars and nested blocks.
+ * Uses the `yaml` package so flow mappings, deep nesting, and typed scalars match the YAML spec.
  */
 export function parseExtensionsYaml(content: string): Record<string, unknown> {
-  const lines = content.split("\n");
-  const result: Record<string, unknown> = {};
-  let i = 0;
-
-  while (i < lines.length) {
-    const line = lines[i];
-    if (!line.trim() || line.startsWith("#")) { i++; continue; }
-
-    const scalarMatch = line.match(/^(\w[\w-]*):\s+(.*)/);
-    if (scalarMatch) {
-      result[scalarMatch[1]] = scalarMatch[2].trim();
-      i++;
-      continue;
-    }
-
-    // Block key (value on next indented lines)
-    const blockMatch = line.match(/^(\w[\w-]*):\s*$/);
-    if (blockMatch) {
-      const key = blockMatch[1];
-      const nested: Record<string, unknown> = {};
-      i++;
-      while (i < lines.length && /^\s+/.test(lines[i])) {
-        const child = lines[i].match(/^\s+(\w[\w-]*):\s*(.*)/);
-        if (child) {
-          nested[child[1]] = child[2].trim();
-        }
-        i++;
-      }
-      result[key] = nested;
-      continue;
-    }
-
-    i++;
+  const trimmed = content.trim();
+  if (!trimmed) {
+    return {};
   }
 
-  return result;
+  let parsed: unknown;
+  try {
+    parsed = parseYamlDocument(trimmed);
+  } catch (cause) {
+    const message = cause instanceof Error ? cause.message : String(cause);
+    throw new Error(`Failed to parse .agent.ext.yaml: ${message}`, { cause });
+  }
+
+  if (parsed === null || parsed === undefined) {
+    return {};
+  }
+  if (typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error(".agent.ext.yaml root must be a YAML mapping (object), not an array or scalar");
+  }
+
+  return parsed as Record<string, unknown>;
 }
 
 /**
@@ -276,6 +262,7 @@ function parseYamlLike(yaml: string): RichAgentFrontmatter {
   const lines = yaml.split("\n");
 
   const schemaVersion = readOptionalScalar(lines, "schemaVersion");
+  const version = readOptionalScalar(lines, "version");
   const name = readScalar(lines, "name");
   const description = readScalar(lines, "description");
   const model = parseModelConfig(lines);
@@ -283,5 +270,6 @@ function parseYamlLike(yaml: string): RichAgentFrontmatter {
 
   const fm: RichAgentFrontmatter = { name, description, model, profiles };
   if (schemaVersion !== undefined) fm.schemaVersion = schemaVersion;
+  if (version !== undefined) fm.version = version;
   return fm;
 }

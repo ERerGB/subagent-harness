@@ -18,12 +18,14 @@ function parseFrontmatter(md: string): Record<string, string> {
 
 describe("L2 Runtime Compliance", () => {
   let cursorOut = "";
+  let codexOut = "";
   let claudeOut = "";
   let prodJson: Record<string, unknown> = {};
 
   beforeAll(() => {
     const doc = loadAgentFromDisk(TEMPLATE_PATH);
     cursorOut = composeSubagent(doc, "cursor");
+    codexOut = composeSubagent(doc, "codex");
     claudeOut = composeSubagent(doc, "claude-code");
     prodJson = JSON.parse(composeSubagent(doc, "production"));
   });
@@ -33,6 +35,10 @@ describe("L2 Runtime Compliance", () => {
     expect(fm.name).toBeTruthy();
     expect(fm.description).toBeTruthy();
     expect(Object.keys(fm).sort()).toEqual(["description", "name"]);
+  });
+
+  it("codex artifact matches cursor minimal markdown (issue #13)", () => {
+    expect(codexOut).toBe(cursorOut);
   });
 
   it("cursor artifact excludes runtime-specific fields", () => {
