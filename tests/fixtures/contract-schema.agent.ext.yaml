@@ -1,0 +1,5 @@
+contentSchema:
+  title:
+    type: string
+  body:
+    type: object

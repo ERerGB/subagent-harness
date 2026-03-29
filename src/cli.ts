@@ -2,14 +2,16 @@
 
 import { readFileSync, writeFileSync, mkdirSync, rmSync, readdirSync, statSync, existsSync, cpSync } from "node:fs";
 import { resolve, basename, join, dirname } from "node:path";
+import { isDeepStrictEqual } from "node:util";
 import { loadAgentFromDisk } from "./parse.js";
 import { validateRichAgent } from "./validate.js";
 import { composeSubagent } from "./compose.js";
+import { validateProductionComposeOutput } from "./compose-contract.js";
 import type { RuntimeTarget, ComposeTarget, SubagentConfig } from "./types.js";
 
 const CONFIG_FILENAME = "subagent.config.json";
 
-type Mode = "dry-run" | "apply" | "clean";
+type Mode = "dry-run" | "apply" | "clean" | "verify";
 
 type PlanSource = "legacy" | "config";
 
@@ -37,6 +39,7 @@ function parseArgs(): ResolvedPlan {
   let src = process.env["AGENTS_SRC"] ?? "";
   let dst = process.env["AGENTS_DST"] ?? "";
   let mode: Mode = "dry-run";
+  let verifyOnly = false;
   let pattern = process.env["AGENTS_PATTERN"] ?? "*.agent.md";
   const targetFilter: string[] = [];
 
@@ -69,12 +72,23 @@ function parseArgs(): ResolvedPlan {
       case "--dry-run":
         mode = "dry-run";
         break;
+      case "--verify":
+        verifyOnly = true;
+        break;
       case "--":
         break;
       default:
         console.error(`E_COMPOSE_ARG: unknown argument '${argv[i]}'`);
         process.exit(2);
     }
+  }
+
+  if (verifyOnly) {
+    if (mode === "apply" || mode === "clean") {
+      console.error("E_COMPOSE_ARG: --verify cannot be combined with --apply or --clean");
+      process.exit(2);
+    }
+    mode = "verify";
   }
 
   const configDir = process.cwd();
@@ -244,6 +258,27 @@ function runCompose(files: string[], target: ComposeTarget, mode: Mode): { compo
     const ext = outputExtension(target.runtime);
     const dest = join(target.dst, `${name}${ext}`);
 
+    const output = composeSubagent(doc, target.runtime, target.profile);
+
+    if (target.runtime === "production") {
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(output);
+      } catch (e) {
+        console.error(`  SKIP ${file} (E_CONTRACT_JSON_PARSE: ${(e as Error).message})`);
+        failed++;
+        continue;
+      }
+      const contract = validateProductionComposeOutput(doc, parsed, target.profile);
+      if (!contract.ok) {
+        const errors = contract.issues.filter(i => i.level === "error");
+        const codes = errors.map(i => `${i.code}: ${i.message}`).join("; ");
+        console.error(`  SKIP ${file} (${codes})`);
+        failed++;
+        continue;
+      }
+    }
+
     if (mode === "dry-run") {
       console.log(`  WOULD compose: ${file} -> ${dest}`);
       console.log(`    name: ${doc.frontmatter.name}`);
@@ -252,13 +287,77 @@ function runCompose(files: string[], target: ComposeTarget, mode: Mode): { compo
       continue;
     }
 
-    const output = composeSubagent(doc, target.runtime, target.profile);
     writeFileSync(dest, output, "utf8");
     console.log(`  COMPOSED: ${dest}`);
     composed++;
   }
 
   return { composed, failed };
+}
+
+/**
+ * Re-compose from SSOT and deep-compare to on-disk production JSON (CI drift gate).
+ */
+function runVerify(files: string[], target: ComposeTarget): { verified: number; failed: number } {
+  let verified = 0;
+  let failed = 0;
+
+  if (target.runtime !== "production") {
+    return { verified: 0, failed: 0 };
+  }
+
+  for (const file of files) {
+    let doc;
+    try {
+      doc = loadAgentFromDisk(file);
+    } catch (e) {
+      console.error(`  SKIP ${file} (E_COMPOSE_PARSE: ${(e as Error).message})`);
+      failed++;
+      continue;
+    }
+
+    const validation = validateRichAgent(doc);
+    if (!validation.ok) {
+      const errors = validation.issues.filter(i => i.level === "error");
+      const codes = errors.map(i => `${i.code}: ${i.message}`).join("; ");
+      console.error(`  SKIP ${file} (${codes})`);
+      failed++;
+      continue;
+    }
+
+    const name = basename(file, ".agent.md");
+    const dest = join(target.dst, `${name}.json`);
+
+    if (!existsSync(dest)) {
+      console.error(`  VERIFY FAIL missing artifact: ${dest}`);
+      failed++;
+      continue;
+    }
+
+    const expectedRaw = composeSubagent(doc, "production", target.profile);
+    const actualRaw = readFileSync(dest, "utf8");
+    let expected: unknown;
+    let actual: unknown;
+    try {
+      expected = JSON.parse(expectedRaw);
+      actual = JSON.parse(actualRaw);
+    } catch (e) {
+      console.error(`  VERIFY FAIL ${dest} (E_VERIFY_JSON: ${(e as Error).message})`);
+      failed++;
+      continue;
+    }
+
+    if (!isDeepStrictEqual(expected, actual)) {
+      console.error(`  VERIFY FAIL ${dest} (E_VERIFY_DRIFT: on-disk JSON does not match compose from SSOT)`);
+      failed++;
+      continue;
+    }
+
+    console.log(`  VERIFIED: ${dest}`);
+    verified++;
+  }
+
+  return { verified, failed };
 }
 
 // ---------------------------------------------------------------------------
@@ -328,8 +427,26 @@ function main(): void {
   const files = findAgentFiles(plan.src, plan.pattern);
   let totalComposed = 0;
   let totalFailed = 0;
+  let totalVerified = 0;
 
   const skillNames = collectSkillNames(files, plan.src);
+
+  if (plan.mode === "verify") {
+    const prodTargets = activeTargets.filter(t => t.runtime === "production");
+    if (prodTargets.length === 0) {
+      console.error("E_VERIFY_NO_PRODUCTION: --verify requires at least one active production target (check subagent.config.json and --target)");
+      process.exit(2);
+    }
+    for (const target of prodTargets) {
+      console.log(`[${target.runtime}] verify source=${plan.src} artifact=${target.dst}`);
+      const { verified, failed } = runVerify(files, target);
+      totalVerified += verified;
+      totalFailed += failed;
+      console.log("");
+    }
+    console.log(`Total: ${totalVerified} verified, ${totalFailed} failed. Mode: verify`);
+    process.exit(totalFailed > 0 ? 1 : 0);
+  }
 
   for (const target of activeTargets) {
     console.log(`[${target.runtime}] source=${plan.src} target=${target.dst} mode=${plan.mode}`);
@@ -357,6 +474,9 @@ function main(): void {
     console.log(`Total: ${totalComposed} composed, ${totalFailed} skipped. Mode: ${plan.mode}`);
     if (plan.mode === "dry-run") {
       console.log("Run with --apply to write files.");
+    }
+    if (totalFailed > 0) {
+      process.exit(1);
     }
   }
 }

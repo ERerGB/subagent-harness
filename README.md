@@ -153,6 +153,25 @@ pnpm exec subagent-compose --apply --target all   # same as omitting --target
 
 `--src` / `--dst` legacy mode only allows `--target cursor` or `--target all`.
 
+### Production JSON contract ([issue #15](https://github.com/ERerGB/subagent-harness/issues/15))
+
+For `runtime: production`, compose runs an extra **SSOT fidelity** check on the JSON (including during `--dry-run`):
+
+- `prompt` must be a non-empty string
+- If the source declares a `model` with a name (top-level or via the target’s `profile`), `model` in JSON must be an object with the same `name` (catches silent `"inherited"` / wrong-provider fallbacks downstream)
+- If `.agent.ext.yaml` defines `contentSchema` as a mapping, top-level keys must match the composed JSON
+
+Any parse failure, validation error, or contract violation increments the failure count; the CLI exits **1** so CI can gate on `subagent-compose --dry-run` or `--apply`.
+
+**Drift check** (optional): after `--apply`, confirm on-disk artifacts still match a fresh compose from SSOT:
+
+```bash
+pnpm exec subagent-compose --apply --target production
+pnpm exec subagent-compose --verify --target production
+```
+
+`--verify` requires at least one active `production` target. It exits **2** if combined with `--apply` or `--clean`, or if no production target is selected.
+
 > Full walkthrough: **[5-Minute Quickstart](docs/QUICKSTART_5_MIN.md)**
 
 ---
@@ -222,6 +241,7 @@ const cursorAgent = composeSubagent(doc, "cursor");
 const codexAgent = composeSubagent(doc, "codex"); // same markdown as cursor; use with `.codex/agents/`
 
 // You can also map `doc.frontmatter` + `doc.body` into your own runtime schema.
+// For `production` JSON, import `validateProductionComposeOutput` to mirror the CLI SSOT checks (issue #15).
 ```
 
 This lets product runtime and IDE runtime consume the same SSOT file while keeping environment-specific adapters isolated.
