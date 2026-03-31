@@ -44,6 +44,13 @@ describe("validateRichAgent", () => {
     expect(result.issues.filter(i => i.level === "error")).toHaveLength(0);
   });
 
+  it("passes validation for gstack-qa prototype fixture (rich agent + ext sidecar)", () => {
+    const doc = loadFixture("gstack-qa-prototype.agent.md");
+    const result = validateRichAgent(doc);
+    expect(result.ok).toBe(true);
+    expect(result.issues.filter(i => i.level === "error")).toHaveLength(0);
+  });
+
   // ── Warning: missing model config ──────────────────────────────
 
   it("emits W_NO_MODEL warning when model config is absent", () => {

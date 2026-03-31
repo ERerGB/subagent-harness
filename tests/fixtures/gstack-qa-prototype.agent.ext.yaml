@@ -1,0 +1,5 @@
+version: 2.0.0
+sourceRepo: https://github.com/garrytan/gstack
+sourcePath: qa/SKILL.md
+allowedTools: Bash,Read,Write,Edit,Glob,Grep,AskUserQuestion,WebSearch
+tags: qa,browser,verification,bugfix
