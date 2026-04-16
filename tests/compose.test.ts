@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { parseRichAgentMarkdown } from "../src/parse.js";
-import { composeSubagent, resolveModel } from "../src/compose.js";
+import { composeSubagent, loadAgent, resolveModel } from "../src/compose.js";
+import { validateAgentDefinition } from "../src/compose-contract.js";
 import { readFixture, loadFixture } from "./helpers.js";
 
 describe("composeSubagent — Cursor runtime", () => {
@@ -103,6 +104,114 @@ describe("composeSubagent — Production runtime", () => {
     const json = JSON.parse(out);
     expect(json.archetype).toBeUndefined();
     expect(json.scenario).toBeUndefined();
+  });
+});
+
+describe("loadAgent — public API (issue #16)", () => {
+  it("returns typed AgentDefinition with required fields", () => {
+    const doc = parseRichAgentMarkdown("test.md", readFixture("valid-full.agent.md"));
+    const def = loadAgent(doc);
+    expect(def.name).toBe("test-agent");
+    expect(typeof def.prompt).toBe("string");
+    expect(def.prompt.length).toBeGreaterThan(0);
+    expect(def.extensions).toBeDefined();
+  });
+
+  it("resolves profile skills and model when profile specified", () => {
+    const doc = parseRichAgentMarkdown("test.md", readFixture("valid-full.agent.md"));
+    const def = loadAgent(doc, "review");
+    expect(def.activeProfile).toBe("review");
+    expect(def.skills).toEqual(["deep-analysis", "citation-gen", "summary-format"]);
+    expect(def.model).not.toBe("inherited");
+    const m = def.model as { name: string; temperature: number };
+    expect(m.name).toBe("opus");
+    expect(m.temperature).toBe(0.7);
+  });
+
+  it("returns empty skills and base model when no profile specified", () => {
+    const doc = parseRichAgentMarkdown("test.md", readFixture("valid-full.agent.md"));
+    const def = loadAgent(doc);
+    expect(def.skills).toEqual([]);
+    expect(def.activeProfile).toBeUndefined();
+    expect(def.model).not.toBe("inherited");
+  });
+
+  it("returns 'inherited' model when no model config in source", () => {
+    const doc = parseRichAgentMarkdown("test.md", readFixture("valid-no-model.agent.md"));
+    const def = loadAgent(doc);
+    expect(def.model).toBe("inherited");
+  });
+
+  it("includes version when frontmatter defines it", () => {
+    const doc = parseRichAgentMarkdown("test.md", readFixture("valid-with-version.agent.md"));
+    const def = loadAgent(doc);
+    expect(def.version).toBe("2.0.0");
+  });
+
+  it("omits version when frontmatter does not define it", () => {
+    const doc = parseRichAgentMarkdown("test.md", readFixture("valid-minimal.agent.md"));
+    const def = loadAgent(doc);
+    expect(def.version).toBeUndefined();
+  });
+
+  it("passes extensions through opaque (no harness interpretation)", () => {
+    const doc = loadFixture("valid-full.agent.md");
+    const def = loadAgent(doc);
+    expect(def.extensions["archetype"]).toBe("analyzer");
+    expect(def.extensions["scenario"]).toBe("meeting");
+  });
+
+  it("extensions are independent copy (mutation does not affect doc)", () => {
+    const doc = loadFixture("valid-full.agent.md");
+    const def = loadAgent(doc);
+    (def.extensions as Record<string, unknown>)["injected"] = true;
+    expect(doc.extensions["injected"]).toBeUndefined();
+  });
+
+  it("production JSON output is consistent with loadAgent() data", () => {
+    const doc = parseRichAgentMarkdown("test.md", readFixture("valid-full.agent.md"));
+    const def = loadAgent(doc, "review");
+    const json = JSON.parse(composeSubagent(doc, "production", "review"));
+    expect(json.name).toBe(def.name);
+    expect(json.prompt).toBe(def.prompt);
+    expect(json.activeProfile).toBe(def.activeProfile);
+    expect(json.skills).toEqual(def.skills);
+  });
+});
+
+describe("validateAgentDefinition — typed contract (issue #16)", () => {
+  it("passes for a well-formed definition", () => {
+    const doc = parseRichAgentMarkdown("test.md", readFixture("valid-full.agent.md"));
+    const def = loadAgent(doc, "live");
+    const result = validateAgentDefinition(def);
+    expect(result.ok).toBe(true);
+    expect(result.issues).toHaveLength(0);
+  });
+
+  it("errors on empty prompt", () => {
+    const doc = parseRichAgentMarkdown("test.md", readFixture("valid-full.agent.md"));
+    const def = loadAgent(doc);
+    def.prompt = "   ";
+    const result = validateAgentDefinition(def);
+    expect(result.ok).toBe(false);
+    expect(result.issues.some(i => i.code === "E_CONTRACT_PROMPT")).toBe(true);
+  });
+
+  it("errors on empty model name when model is not 'inherited'", () => {
+    const doc = parseRichAgentMarkdown("test.md", readFixture("valid-full.agent.md"));
+    const def = loadAgent(doc);
+    def.model = { name: "  " };
+    const result = validateAgentDefinition(def);
+    expect(result.ok).toBe(false);
+    expect(result.issues.some(i => i.code === "E_CONTRACT_MODEL_NAME")).toBe(true);
+  });
+
+  it("passes when model is 'inherited'", () => {
+    const doc = parseRichAgentMarkdown("test.md", readFixture("valid-no-model.agent.md"));
+    const def = loadAgent(doc);
+    expect(def.model).toBe("inherited");
+    const result = validateAgentDefinition(def);
+    expect(result.ok).toBe(true);
   });
 });
 

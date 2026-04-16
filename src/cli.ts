@@ -11,7 +11,7 @@ import type { RuntimeTarget, ComposeTarget, SubagentConfig } from "./types.js";
 
 const CONFIG_FILENAME = "subagent.config.json";
 
-type Mode = "dry-run" | "apply" | "clean" | "verify";
+type Mode = "dry-run" | "apply" | "clean" | "verify" | "check";
 
 type PlanSource = "legacy" | "config";
 
@@ -75,6 +75,9 @@ function parseArgs(): ResolvedPlan {
       case "--verify":
         verifyOnly = true;
         break;
+      case "--check":
+        mode = "check";
+        break;
       case "--":
         break;
       default:
@@ -84,8 +87,8 @@ function parseArgs(): ResolvedPlan {
   }
 
   if (verifyOnly) {
-    if (mode === "apply" || mode === "clean") {
-      console.error("E_COMPOSE_ARG: --verify cannot be combined with --apply or --clean");
+    if (mode === "apply" || mode === "clean" || mode === "check") {
+      console.error("E_COMPOSE_ARG: --verify cannot be combined with --apply, --clean, or --check");
       process.exit(2);
     }
     mode = "verify";
@@ -361,6 +364,53 @@ function runVerify(files: string[], target: ComposeTarget): { verified: number; 
 }
 
 // ---------------------------------------------------------------------------
+// Check (issue #20) — staleness detection without writing files
+// ---------------------------------------------------------------------------
+
+interface CheckResult {
+  stale: number;
+  absent: number;
+  upToDate: number;
+}
+
+/**
+ * Compare each source `.agent.md` mtime against its composed output.
+ * Reports status per artifact and returns counts.
+ * Exit 0 when all outputs are up to date; exit 1 when any is stale or absent.
+ */
+function runCheck(files: string[], target: ComposeTarget): CheckResult {
+  let stale = 0;
+  let absent = 0;
+  let upToDate = 0;
+
+  const ext = outputExtension(target.runtime);
+
+  for (const file of files) {
+    const name = basename(file, ".agent.md");
+    const dest = join(target.dst, `${name}${ext}`);
+
+    if (!existsSync(dest)) {
+      console.log(`  [check] ${name}${ext}  ⚠️  absent`);
+      absent++;
+      continue;
+    }
+
+    const srcMtime = statSync(file).mtimeMs;
+    const dstMtime = statSync(dest).mtimeMs;
+
+    if (srcMtime > dstMtime) {
+      console.log(`  [check] ${name}${ext}  ⚠️  stale (${basename(file)} is newer)`);
+      stale++;
+    } else {
+      console.log(`  [check] ${name}${ext}  ✅ up to date`);
+      upToDate++;
+    }
+  }
+
+  return { stale, absent, upToDate };
+}
+
+// ---------------------------------------------------------------------------
 // Skill bundling (issue #10)
 // ---------------------------------------------------------------------------
 
@@ -430,6 +480,25 @@ function main(): void {
   let totalVerified = 0;
 
   const skillNames = collectSkillNames(files, plan.src);
+
+  if (plan.mode === "check") {
+    let totalStale = 0;
+    let totalAbsent = 0;
+    let totalUpToDate = 0;
+    for (const target of activeTargets) {
+      console.log(`[${target.runtime}] check source=${plan.src} artifact=${target.dst}`);
+      const { stale, absent, upToDate } = runCheck(files, target);
+      totalStale += stale;
+      totalAbsent += absent;
+      totalUpToDate += upToDate;
+      console.log("");
+    }
+    console.log(`Total: ${totalUpToDate} up to date, ${totalStale} stale, ${totalAbsent} absent. Mode: check`);
+    if (totalStale > 0 || totalAbsent > 0) {
+      console.log("Run with --apply to recompose.");
+    }
+    process.exit(totalStale > 0 || totalAbsent > 0 ? 1 : 0);
+  }
 
   if (plan.mode === "verify") {
     const prodTargets = activeTargets.filter(t => t.runtime === "production");

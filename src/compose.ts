@@ -1,4 +1,4 @@
-import type { RichAgentDocument, RuntimeTarget, ModelConfig } from "./types.js";
+import type { RichAgentDocument, RuntimeTarget, ModelConfig, AgentDefinition } from "./types.js";
 
 /**
  * Compose a rich agent document into a runtime-ready artifact.
@@ -76,35 +76,77 @@ function composeClaudeCodeMarkdown(doc: RichAgentDocument, profile?: string): st
 
 // ── Production adapter ───────────────────────────────────────────
 
-function composeProductionJSON(doc: RichAgentDocument, profile?: string): string {
-  const base: Record<string, unknown> = {
+/**
+ * Return a fully-resolved, typed `AgentDefinition` from a rich agent document.
+ *
+ * This is the public API boundary: the harness owns "what an agent IS"
+ * (identity, prompt, model, skills). Consumer projects own "what an agent DOES"
+ * via the opaque `extensions` bag.
+ *
+ * @param doc    - Parsed rich agent document.
+ * @param profile - Optional profile keyword. When set, resolves model override
+ *                  and skill list from that profile; `activeProfile` is included.
+ */
+export function loadAgent(doc: RichAgentDocument, profile?: string): AgentDefinition {
+  const skills: string[] = profile
+    ? (doc.frontmatter.profiles?.profiles[profile]?.skills ?? [])
+    : [];
+
+  const model: ModelConfig | "inherited" = profile
+    ? (resolveModel(doc, profile) ?? "inherited")
+    : (doc.frontmatter.model ?? "inherited");
+
+  const def: AgentDefinition = {
     name: doc.frontmatter.name,
     description: doc.frontmatter.description,
+    model,
+    skills,
+    prompt: doc.body.trim(),
+    extensions: { ...doc.extensions },
   };
 
   if (doc.frontmatter.version) {
-    base.version = doc.frontmatter.version;
-  }
-
-  // Spread extensions (consumer-specific fields like archetype, scenario, adr)
-  for (const [key, value] of Object.entries(doc.extensions)) {
-    base[key] = value;
+    def.version = doc.frontmatter.version;
   }
 
   if (profile) {
-    const resolved = resolveModel(doc, profile);
-    base.model = resolved ?? "inherited";
-    base.activeProfile = profile;
-    const profileDef = doc.frontmatter.profiles?.profiles[profile];
-    base.skills = profileDef?.skills ?? [];
-  } else {
-    base.model = doc.frontmatter.model ?? "inherited";
-    if (doc.frontmatter.profiles) {
-      base.profiles = doc.frontmatter.profiles;
-    }
+    def.activeProfile = profile;
   }
 
-  base.prompt = doc.body.trim();
+  return def;
+}
 
-  return JSON.stringify(base, null, 2) + "\n";
+function composeProductionJSON(doc: RichAgentDocument, profile?: string): string {
+  const def = loadAgent(doc, profile);
+
+  // Build the JSON root: start with the AgentDefinition fields, then spread
+  // extensions at the top level for backwards compatibility (consumers rely on
+  // e.g. `archetype`, `contentSchema` at root rather than under `extensions`).
+  const root: Record<string, unknown> = {};
+
+  root["name"] = def.name;
+  root["description"] = def.description;
+
+  if (def.version !== undefined) {
+    root["version"] = def.version;
+  }
+
+  // Spread opaque extensions at root level (consumer-defined fields).
+  for (const [key, value] of Object.entries(def.extensions)) {
+    root[key] = value;
+  }
+
+  root["model"] = def.model;
+
+  if (def.activeProfile !== undefined) {
+    root["activeProfile"] = def.activeProfile;
+  } else if (doc.frontmatter.profiles) {
+    // No profile requested: include full profiles block for runtime selection.
+    root["profiles"] = doc.frontmatter.profiles;
+  }
+
+  root["skills"] = def.skills;
+  root["prompt"] = def.prompt;
+
+  return JSON.stringify(root, null, 2) + "\n";
 }

@@ -1,5 +1,5 @@
 import { resolveModel } from "./compose.js";
-import type { RichAgentDocument, ValidationIssue, ValidationResult } from "./types.js";
+import type { AgentDefinition, RichAgentDocument, ValidationIssue, ValidationResult } from "./types.js";
 
 /**
  * Build-time checks that production JSON still reflects SSOT (.agent.md + .agent.ext.yaml).
@@ -111,6 +111,36 @@ export function validateProductionComposeOutput(
 
   const hasErrors = issues.some(i => i.level === "error");
   return { ok: !hasErrors, issues };
+}
+
+/**
+ * Validate a typed `AgentDefinition` produced by `loadAgent()`.
+ *
+ * Lighter-weight than `validateProductionComposeOutput`: operates on the
+ * typed object directly so callers don't need to round-trip through JSON.
+ */
+export function validateAgentDefinition(def: AgentDefinition): ValidationResult {
+  const issues: ValidationIssue[] = [];
+
+  if (!def.name?.trim()) {
+    issues.push({ code: "E_CONTRACT_NAME", message: "AgentDefinition.name must be non-empty", level: "error", path: "name" });
+  }
+
+  if (!def.description?.trim()) {
+    issues.push({ code: "E_CONTRACT_DESCRIPTION", message: "AgentDefinition.description must be non-empty", level: "error", path: "description" });
+  }
+
+  if (!def.prompt?.trim()) {
+    issues.push({ code: "E_CONTRACT_PROMPT", message: "AgentDefinition.prompt must be non-empty", level: "error", path: "prompt" });
+  }
+
+  if (def.model !== "inherited") {
+    if (!def.model?.name?.trim()) {
+      issues.push({ code: "E_CONTRACT_MODEL_NAME", message: "AgentDefinition.model.name must be non-empty when model is not 'inherited'", level: "error", path: "model.name" });
+    }
+  }
+
+  return { ok: !issues.some(i => i.level === "error"), issues };
 }
 
 function sortedKeys(o: Record<string, unknown>): string[] {

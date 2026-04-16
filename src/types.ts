@@ -62,6 +62,22 @@ export interface RichAgentDocument {
   extensions: Record<string, unknown>;
 }
 
+// ── AgentDefinition — typed loadAgent() output ───────────────────
+// The harness-owned view of a composed agent: identity + prompt + model + skills.
+// Extensions are passed through opaque — only the consumer project interprets them.
+
+export interface AgentDefinition {
+  name: string;
+  description: string;
+  version?: string;
+  model: ModelConfig | "inherited";
+  skills: string[];
+  prompt: string;
+  activeProfile?: string;
+  /** Consumer-specific extension fields, opaque to the harness. */
+  extensions: Record<string, unknown>;
+}
+
 // ── Validation ───────────────────────────────────────────────────
 
 export type IssueLevel = "error" | "warning";
