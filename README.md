@@ -287,6 +287,64 @@ See [Samantha Quickstart](docs/SAMANTHA_QUICKSTART.md) for full walkthrough.
 
 ---
 
+## Integration Best Practices
+
+### The Extension Boundary
+
+When integrating `subagent-harness` into your project, the most important architectural decision is understanding **where the harness stops and your project begins**.
+
+```text
+subagent-harness (standardized)          Your project (project-specific)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━            ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+.agent.md → parse → validate              Interpret extensions semantics
+.agent.ext.yaml → merge extensions        Scenario bundle resolution
+Profile → resolve model + skills          Agent orchestration / scheduling
+Output → AgentDefinition or artifact      Runtime lifecycle (spawn, freeze…)
+Contract validation                       Map skill names → tool implementations
+```
+
+**The harness never interprets `extensions`.** It passes them through as an opaque `Record<string, unknown>`. All domain-specific logic built on extension fields belongs in your project's runtime layer.
+
+### What goes where
+
+| Concern | Where it lives | Why |
+|---------|---------------|-----|
+| Agent identity (name, description, prompt) | Harness — `.agent.md` | Universal across all runtimes |
+| Model config and profile resolution | Harness — `loadAgent()` | Deterministic merge logic, runtime-agnostic |
+| Extension fields (`config`, `contentSchema`, `archetype`…) | Harness stores, **your project interprets** | Semantics are domain-specific |
+| Scenario bundles (`refs`, `overrides`, `disabled`) | Your project only | Product-level composition decisions |
+| Agent scheduling and lifecycle | Your project only | Depends on your interaction model |
+| Skill → tool binding | Your project only | Tools are runtime-specific |
+
+### Example: consuming production artifacts
+
+```ts
+import { loadAgentFromDisk, composeSubagent } from "subagent-harness";
+
+// Harness: SSOT → typed artifact
+const doc = loadAgentFromDisk("agents/my-agent.agent.md");
+const json = JSON.parse(composeSubagent(doc, "production"));
+
+// Your project: interpret extensions, wire up runtime
+const maxIdleTurns = json.config?.maxIdleTurns ?? 10;  // your domain logic
+const contentSchema = json.contentSchema;                // your card schema
+// ... feed into your own scheduler / executor
+```
+
+### Why scenario bundles are NOT in the harness
+
+A scenario bundle (e.g. "which agents run together, with what overrides, excluding which others") is a **product decision**. Different projects compose agents differently:
+
+- A meeting app might run 3 agents in parallel monitoring a transcript
+- A CI pipeline might run 1 agent per PR sequentially
+- A CLI tool might spawn agents as task executors
+
+The harness provides `loadAgent()` for each individual agent. **How you compose multiple agents is your product's job, not a library concern.**
+
+> See [issue #16](https://github.com/ERerGB/subagent-harness/issues/16) for the `loadAgent()` typed API that formalizes this boundary.
+
+---
+
 ## Docs
 
 | Document | Purpose |
