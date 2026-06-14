@@ -64,212 +64,176 @@ export function loadAgentFromDisk(mdPath: string): RichAgentDocument {
   return doc;
 }
 
-// ── Scalar readers ───────────────────────────────────────────────
+// ── Frontmatter parser (core fields only) ────────────────────────
 
-function readScalar(lines: string[], key: string): string {
-  for (let i = 0; i < lines.length; i++) {
-    const m = lines[i].match(new RegExp(`^${key}:\\s*(.*)`));
-    if (!m) continue;
+type YamlMapping = Record<string, unknown>;
 
-    const value = m[1].trim();
+function parseYamlLike(yaml: string): RichAgentFrontmatter {
+  const root = parseYamlMapping(yaml, "frontmatter");
 
-    // Folded (>) or literal (|) block scalar
-    if (value === ">" || value === "|") {
-      const parts: string[] = [];
-      for (let j = i + 1; j < lines.length; j++) {
-        if (/^\s+/.test(lines[j])) {
-          parts.push(lines[j].trim());
-        } else {
-          break;
-        }
-      }
-      return parts.join(value === ">" ? " " : "\n");
-    }
+  const fm: RichAgentFrontmatter = {
+    name: readRequiredString(root, "name"),
+    description: readRequiredString(root, "description"),
+  };
 
-    if (!value) throw new Error(`Missing value for key: ${key}`);
-    return value.replace(/^"|"$/g, "");
-  }
-  throw new Error(`Missing required key: ${key}`);
+  const schemaVersion = readOptionalString(root, "schemaVersion");
+  if (schemaVersion !== undefined) fm.schemaVersion = schemaVersion;
+
+  const version = readOptionalString(root, "version");
+  if (version !== undefined) fm.version = version;
+
+  const model = parseModelConfig(root["model"], "model");
+  if (model !== undefined) fm.model = model;
+
+  const profiles = parseProfiles(root["profiles"], "profiles");
+  if (profiles !== undefined) fm.profiles = profiles;
+
+  return fm;
 }
 
-function readOptionalScalar(lines: string[], key: string): string | undefined {
+function parseYamlMapping(yaml: string, path: string): YamlMapping {
+  let parsed: unknown;
   try {
-    return readScalar(lines, key);
-  } catch {
+    parsed = parseYamlDocument(yaml);
+  } catch (cause) {
+    const message = cause instanceof Error ? cause.message : String(cause);
+    throw new Error(`Failed to parse .agent.md frontmatter: ${message}`, { cause });
+  }
+
+  return asMapping(parsed, path);
+}
+
+function asMapping(value: unknown, path: string): YamlMapping {
+  if (value !== null && typeof value === "object" && !Array.isArray(value)) {
+    return value as YamlMapping;
+  }
+  throw new Error(`${path} must be a YAML mapping (object), not an array or scalar`);
+}
+
+function readRequiredString(map: YamlMapping, key: string): string {
+  if (!Object.prototype.hasOwnProperty.call(map, key)) {
+    throw new Error(`Missing required key: ${key}`);
+  }
+  return scalarToString(map[key], key);
+}
+
+function readOptionalString(map: YamlMapping, key: string): string | undefined {
+  if (!Object.prototype.hasOwnProperty.call(map, key) || map[key] === undefined) {
     return undefined;
   }
+  return scalarToString(map[key], key);
 }
 
-// ── Nested block reader ──────────────────────────────────────────
-
-function readNestedBlock(lines: string[], key: string): Record<string, string> | undefined {
-  let blockStart = -1;
-  for (let i = 0; i < lines.length; i++) {
-    if (lines[i].match(new RegExp(`^${key}:\\s*$`))) {
-      blockStart = i + 1;
-      break;
-    }
-  }
-  if (blockStart < 0) return undefined;
-
-  const result: Record<string, string> = {};
-  for (let j = blockStart; j < lines.length; j++) {
-    const child = lines[j].match(/^\s+(\w+):\s*(.*)/);
-    if (!child) break;
-    result[child[1]] = child[2].trim();
-  }
-
-  return Object.keys(result).length > 0 ? result : undefined;
+function scalarToString(value: unknown, path: string): string {
+  if (value === null) return "";
+  if (typeof value === "string") return value.trim();
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  throw new Error(`${path} must be a scalar string`);
 }
 
-// ── Model config parser ──────────────────────────────────────────
+function readOptionalNumber(map: YamlMapping, key: string, path: string): number | undefined {
+  if (!Object.prototype.hasOwnProperty.call(map, key) || map[key] === undefined || map[key] === null) {
+    return undefined;
+  }
 
-function buildModelFromBlock(block: Record<string, string>): ModelConfig {
-  const config: ModelConfig = { name: block["name"] ?? "" };
-  if (block["temperature"] !== undefined) {
-    config.temperature = parseFloat(block["temperature"]);
+  const value = map[key];
+  const n = typeof value === "number"
+    ? value
+    : typeof value === "string"
+      ? Number(value)
+      : Number.NaN;
+
+  if (!Number.isFinite(n)) {
+    throw new Error(`${path}.${key} must be a finite number`);
   }
-  if (block["maxTokens"] !== undefined) {
-    config.maxTokens = parseInt(block["maxTokens"], 10);
-  }
+  return n;
+}
+
+function parseModelConfig(value: unknown, path: string): ModelConfig | undefined {
+  if (value === undefined || value === null) return undefined;
+
+  const block = asMapping(value, path);
+  const config: ModelConfig = {
+    name: Object.prototype.hasOwnProperty.call(block, "name")
+      ? scalarToString(block["name"], `${path}.name`)
+      : "",
+  };
+
+  const temperature = readOptionalNumber(block, "temperature", path);
+  if (temperature !== undefined) config.temperature = temperature;
+
+  const maxTokens = readOptionalNumber(block, "maxTokens", path);
+  if (maxTokens !== undefined) config.maxTokens = maxTokens;
+
   return config;
 }
 
-function parseModelConfig(lines: string[]): ModelConfig | undefined {
-  const block = readNestedBlock(lines, "model");
-  if (!block) return undefined;
-  return buildModelFromBlock(block);
-}
+function parsePartialModelConfig(value: unknown, path: string): Partial<ModelConfig> | undefined {
+  if (value === undefined || value === null) return undefined;
 
-// ── Inline array parser ──────────────────────────────────────────
+  const block = asMapping(value, path);
+  const config: Partial<ModelConfig> = {};
 
-function parseInlineArray(value: string): string[] {
-  const inner = value.replace(/^\[/, "").replace(/\]$/, "").trim();
-  if (!inner) return [];
-  return inner.split(",").map(s => s.trim()).filter(Boolean);
-}
-
-// ── Profiles parser ──────────────────────────────────────────────
-
-function parseProfiles(lines: string[]): ProfilesConfig | undefined {
-  let blockStart = -1;
-  for (let i = 0; i < lines.length; i++) {
-    if (/^profiles:\s*$/.test(lines[i])) {
-      blockStart = i + 1;
-      break;
-    }
+  if (Object.prototype.hasOwnProperty.call(block, "name")) {
+    config.name = scalarToString(block["name"], `${path}.name`);
   }
-  if (blockStart < 0) return undefined;
 
-  const childIndentMatch = lines[blockStart]?.match(/^(\s+)/);
-  if (!childIndentMatch) return undefined;
-  const childIndent = childIndentMatch[1].length;
+  const temperature = readOptionalNumber(block, "temperature", path);
+  if (temperature !== undefined) config.temperature = temperature;
 
-  let defaultProfile: string | undefined;
+  const maxTokens = readOptionalNumber(block, "maxTokens", path);
+  if (maxTokens !== undefined) config.maxTokens = maxTokens;
+
+  return Object.keys(config).length > 0 ? config : undefined;
+}
+
+function parseProfiles(value: unknown, path: string): ProfilesConfig | undefined {
+  if (value === undefined || value === null) return undefined;
+
+  const block = asMapping(value, path);
   const profiles: Record<string, AgentProfile> = {};
+  let defaultProfile: string | undefined;
 
-  let i = blockStart;
-  while (i < lines.length) {
-    const line = lines[i];
-    if (!/^\s/.test(line)) break;
-
-    const childMatch = line.match(new RegExp(`^\\s{${childIndent}}(\\w[\\w-]*):\\s*(.*)`));
-    if (!childMatch) break;
-
-    const key = childMatch[1];
-    const value = childMatch[2].trim();
-
-    if (key === "default") {
-      defaultProfile = value;
-      i++;
+  for (const [name, rawProfile] of Object.entries(block)) {
+    if (name === "default") {
+      defaultProfile = scalarToString(rawProfile, `${path}.default`);
       continue;
     }
 
-    const { _endLine, ...profile } = parseProfileBody(lines, i + 1, childIndent);
-    profiles[key] = profile;
-    i = _endLine;
+    const profileBlock = asMapping(rawProfile, `${path}.${name}`);
+    const profile: AgentProfile = {
+      skills: parseSkills(profileBlock["skills"], `${path}.${name}.skills`),
+    };
+
+    const model = parsePartialModelConfig(profileBlock["model"], `${path}.${name}.model`);
+    if (model !== undefined) {
+      profile.model = model;
+    }
+
+    profiles[name] = profile;
   }
 
   if (Object.keys(profiles).length === 0) return undefined;
 
-  return { default: defaultProfile, profiles };
+  const result: ProfilesConfig = { profiles };
+  if (defaultProfile !== undefined) {
+    result.default = defaultProfile;
+  }
+  return result;
 }
 
-interface ProfileParseResult extends AgentProfile {
-  _endLine: number;
-}
+function parseSkills(value: unknown, path: string): string[] {
+  if (value === undefined || value === null) return [];
 
-function parseProfileBody(lines: string[], start: number, parentIndent: number): ProfileParseResult {
-  const subIndent = parentIndent + 2;
-  let skills: string[] = [];
-  let model: Partial<ModelConfig> | undefined;
-  let i = start;
-
-  while (i < lines.length) {
-    const line = lines[i];
-    const indentMatch = line.match(/^(\s+)/);
-    if (!indentMatch || indentMatch[1].length < subIndent) break;
-
-    const subMatch = line.match(new RegExp(`^\\s{${subIndent}}(\\w+):\\s*(.*)`));
-    if (!subMatch) break;
-
-    const key = subMatch[1];
-    const value = subMatch[2].trim();
-
-    if (key === "skills") {
-      skills = parseInlineArray(value);
-      i++;
-    } else if (key === "model") {
-      const modelBlock = parseSubModelBlock(lines, i + 1, subIndent);
-      model = modelBlock.config;
-      i = modelBlock.endLine;
-    } else {
-      i++;
-    }
+  if (Array.isArray(value)) {
+    return value.map((item, index) => scalarToString(item, `${path}[${index}]`));
   }
 
-  return { skills, model, _endLine: i };
-}
-
-function parseSubModelBlock(lines: string[], start: number, parentIndent: number): { config: Partial<ModelConfig>; endLine: number } {
-  const subIndent = parentIndent + 2;
-  const block: Record<string, string> = {};
-  let i = start;
-
-  while (i < lines.length) {
-    const line = lines[i];
-    const indentMatch = line.match(/^(\s+)/);
-    if (!indentMatch || indentMatch[1].length < subIndent) break;
-
-    const m = line.match(new RegExp(`^\\s{${subIndent}}(\\w+):\\s*(.*)`));
-    if (!m) break;
-
-    block[m[1]] = m[2].trim();
-    i++;
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) return [];
+    return trimmed.split(",").map(s => s.trim()).filter(Boolean);
   }
 
-  const config: Partial<ModelConfig> = {};
-  if (block["name"]) config.name = block["name"];
-  if (block["temperature"] !== undefined) config.temperature = parseFloat(block["temperature"]);
-  if (block["maxTokens"] !== undefined) config.maxTokens = parseInt(block["maxTokens"], 10);
-
-  return { config: Object.keys(config).length > 0 ? config : undefined as unknown as Partial<ModelConfig>, endLine: i };
-}
-
-// ── Main parser (core fields only) ───────────────────────────────
-
-function parseYamlLike(yaml: string): RichAgentFrontmatter {
-  const lines = yaml.split("\n");
-
-  const schemaVersion = readOptionalScalar(lines, "schemaVersion");
-  const version = readOptionalScalar(lines, "version");
-  const name = readScalar(lines, "name");
-  const description = readScalar(lines, "description");
-  const model = parseModelConfig(lines);
-  const profiles = parseProfiles(lines);
-
-  const fm: RichAgentFrontmatter = { name, description, model, profiles };
-  if (schemaVersion !== undefined) fm.schemaVersion = schemaVersion;
-  if (version !== undefined) fm.version = version;
-  return fm;
+  throw new Error(`${path} must be a YAML sequence or comma-separated string`);
 }

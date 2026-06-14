@@ -1,55 +1,74 @@
-# Supported YAML Subset
+# YAML Support
 
-`subagent-harness` uses a **purpose-built YAML parser** (zero dependencies) optimized for
-`.agent.md` frontmatter and `.agent.ext.yaml` sidecar files. It intentionally supports only
-the YAML features needed by the agent definition format.
+`subagent-harness` parses `.agent.md` frontmatter and `.agent.ext.yaml` sidecars
+with the `yaml` package. The parser accepts standard YAML syntax, then normalizes
+only the fields owned by the harness protocol.
 
-## Supported Features
+## `.agent.md` frontmatter
 
-| Feature | Syntax | Example |
-|---------|--------|---------|
-| Scalar key-value | `key: value` | `name: my-agent` |
-| Quoted strings | `key: "value"` | `description: "A cool agent"` |
-| Folded block scalar | `key: >` | Multi-line → single line (spaces) |
-| Literal block scalar | `key: \|` | Multi-line → preserved newlines |
-| Nested block (1 level) | `parent:` + indented children | `model:` / `  name: sonnet` |
-| Multi-level nesting | Up to 3 levels | `profiles:` / `  live:` / `    skills: [...]` |
-| Inline arrays | `[a, b, c]` | `skills: [fact-check, cite]` |
-| Comments | `# comment` | Skipped in `.ext.yaml` parsing |
+The frontmatter root must be a YAML mapping. The harness reads these core fields:
 
-## Unsupported Features
+| Field | Shape | Notes |
+|-------|-------|-------|
+| `schemaVersion` | scalar | Optional; normalized to string |
+| `version` | scalar | Optional agent content version |
+| `name` | scalar | Required; validated as lowercase kebab-case |
+| `description` | scalar | Required |
+| `model` | mapping | Optional; `name`, `temperature`, `maxTokens` |
+| `profiles` | mapping | Optional; `default` plus profile mappings |
+| `profiles.<name>.skills` | sequence or comma-separated string | Empty sequence is allowed |
+| `profiles.<name>.model` | mapping | Optional model override |
 
-These standard YAML features are **not supported** and will be silently ignored or cause
-parse errors:
-
-| Feature | Syntax | Reason |
-|---------|--------|--------|
-| Anchors & aliases | `&anchor` / `*anchor` | No reuse pattern in agent definitions |
-| Multi-document streams | `---` / `...` as doc separators | `---` is reserved for frontmatter delimiters |
-| Merge keys | `<<: *base` | Not needed; profiles handle overrides |
-| Type tags | `!!str`, `!!int` | Values are coerced by the parser |
-| Flow mappings | `{key: value}` | Use block style instead |
-| Block sequences | `- item` | Use inline array `[a, b]` syntax |
-| Complex keys | `? key` | Not applicable |
-| Deeply nested blocks (>3 levels) | — | Flatten structure or use extensions |
-
-## Colons in Values
-
-Unquoted values containing colons (`:`) may cause incorrect parsing.
-When a value contains a colon, wrap it in double quotes:
+Standard YAML features such as quoted scalars, folded/literal block scalars,
+flow mappings, block sequences, comments, anchors, and aliases are supported by
+the parser.
 
 ```yaml
-# Safe
+---
+schemaVersion: 1
+name: yaml-agent
 description: "Handles HTTP responses: 200, 404, 500"
-
-# Risky — may split at the first colon
-description: Handles HTTP responses: 200, 404, 500
+model: { name: sonnet, temperature: 0.2, maxTokens: 1024 }
+profiles:
+  default: live
+  live:
+    skills: &coreSkills
+      - fact-check
+      - real-time-cite
+  review:
+    skills: *coreSkills
+    model: { name: opus, temperature: 0.7 }
+---
 ```
 
-## Design Rationale
+## `.agent.ext.yaml` sidecars
 
-The hand-rolled parser keeps `subagent-harness` at **zero runtime dependencies**.
-Agent definitions are a controlled format — the parser covers exactly the features
-the format requires. For consumers needing full YAML spec compliance, we recommend
-pre-processing files with a standard YAML library (`yaml` package) before passing
-parsed content to the harness API.
+Sidecar files also use the `yaml` package. The root must be a YAML mapping; the
+harness keeps the resulting object opaque and passes it through as `extensions`
+or spreads it into production JSON for backward compatibility.
+
+```yaml
+contentSchema:
+  quote: string
+  context: string
+config:
+  confidence: { high: 0.85, medium: 0.65, low: 0.45 }
+  maxIdleTurns: 5
+```
+
+## Protocol limits
+
+The parser accepts YAML, but the harness protocol is still intentionally small:
+
+| Feature | Status | Reason |
+|---------|--------|--------|
+| Unknown frontmatter keys | Ignored | Core frontmatter stays portable across runtimes |
+| YAML merge key `<<` | Not interpreted as profile inheritance | Profile inheritance belongs in explicit model/skill resolution |
+| Multi-document streams inside frontmatter | Not supported | `---` is reserved for Markdown frontmatter delimiters |
+| Domain validation for sidecars | Consumer-owned | Use `validateRichAgent(doc, { extensionValidator })` |
+
+When values contain colons or other YAML-significant characters, quote them:
+
+```yaml
+description: "Handles HTTP responses: 200, 404, 500"
+```

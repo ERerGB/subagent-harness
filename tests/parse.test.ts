@@ -39,6 +39,53 @@ describe("parseRichAgentMarkdown", () => {
     expect(doc.frontmatter.description).toBe("Bare minimum required fields only");
   });
 
+  it("parses standard YAML frontmatter features", () => {
+    const doc = parseRichAgentMarkdown("test.md", `---
+schemaVersion: 1
+name: yaml-agent
+description: "Handles HTTP responses: 200, 404, 500"
+model: { name: sonnet, temperature: 0.2, maxTokens: 1024 }
+profiles:
+  default: live
+  live:
+    skills: &coreSkills
+      - fact-check
+      - real-time-cite
+  review:
+    skills: *coreSkills
+    model: { name: opus, temperature: 0.7 }
+---
+
+Use the YAML parser for core frontmatter.
+`);
+
+    expect(doc.frontmatter.schemaVersion).toBe("1");
+    expect(doc.frontmatter.description).toBe("Handles HTTP responses: 200, 404, 500");
+    expect(doc.frontmatter.model).toEqual({ name: "sonnet", temperature: 0.2, maxTokens: 1024 });
+    expect(doc.frontmatter.profiles?.default).toBe("live");
+    expect(doc.frontmatter.profiles?.profiles["live"].skills).toEqual(["fact-check", "real-time-cite"]);
+    expect(doc.frontmatter.profiles?.profiles["review"].skills).toEqual(["fact-check", "real-time-cite"]);
+    expect(doc.frontmatter.profiles?.profiles["review"].model).toEqual({ name: "opus", temperature: 0.7 });
+  });
+
+  it("parses block sequence skills in profiles", () => {
+    const doc = parseRichAgentMarkdown("test.md", `---
+name: sequence-skills
+description: Agent with block sequence skills
+profiles:
+  default: live
+  live:
+    skills:
+      - detect
+      - classify
+---
+
+Use block sequence skills.
+`);
+
+    expect(doc.frontmatter.profiles?.profiles["live"].skills).toEqual(["detect", "classify"]);
+  });
+
   it("stores sourcePath from argument", () => {
     const doc = parseRichAgentMarkdown("/some/path.md", readFixture("valid-minimal.agent.md"));
     expect(doc.sourcePath).toBe("/some/path.md");
@@ -147,6 +194,25 @@ describe("parseRichAgentMarkdown", () => {
   it("throws on missing required key (name)", () => {
     expect(() => parseRichAgentMarkdown("bad.md", readFixture("invalid-no-name.agent.md")))
       .toThrow("Missing required key: name");
+  });
+
+  it("throws on non-mapping frontmatter root", () => {
+    expect(() => parseRichAgentMarkdown("bad.md", `---
+- name
+---
+
+Body
+`)).toThrow("frontmatter must be a YAML mapping");
+  });
+
+  it("wraps YAML syntax errors in frontmatter", () => {
+    expect(() => parseRichAgentMarkdown("bad.md", `---
+name: [unclosed
+description: Bad YAML
+---
+
+Body
+`)).toThrow(/Failed to parse \.agent\.md frontmatter/);
   });
 });
 
