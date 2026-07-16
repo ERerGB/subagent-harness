@@ -1,8 +1,8 @@
 # Visual tool bake-off
 
-> **Status: retired provenance.** This experiment is no longer an active visual
-> production route. Its brief reflects the earlier “build once” narrative;
-> do not use it to generate current repository assets.
+> **Status: retired production route, retained provenance.** The Figma v2 output
+> is promoted as the current README proof visual, but the earlier “build once”
+> brief must not be reused to generate new repository assets.
 
 This experiment compared first-pass visual production workflows for the same
 developer-facing proof visual. It was intentionally not a comparison of four

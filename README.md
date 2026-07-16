@@ -18,6 +18,15 @@ through one portable contract.
 
 > **Boundary:** this project is the build and compatibility layer. It does not import arbitrary vendor-native definitions, erase runtime capability gaps, sandbox, schedule, or execute agents.
 
+[![One portable agent definition compiled into runtime-native artifacts for Cursor, Codex, Claude Code, and production](docs/media/subagent-harness-share.png)](https://github.com/ERerGB/subagent-harness)
+
+Click the visual to open the canonical repository. Copy this block to share the
+same image and destination:
+
+```md
+[![Docker for agentic environments](https://raw.githubusercontent.com/ERerGB/subagent-harness/main/docs/media/subagent-harness-share.png)](https://github.com/ERerGB/subagent-harness)
+```
+
 **Fast paths:** [Understand the problem](#the-problem-agentic-environment-fragmentation) ·
 [Install in two minutes](#quickstart) · [Inspect build targets](#build-targets) ·
 [Embed the API](#programmatic-api) · [Define the integration boundary](#integration-boundary) ·

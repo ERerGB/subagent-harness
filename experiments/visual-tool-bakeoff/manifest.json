@@ -4,6 +4,8 @@
   "status": "retired",
   "retiredOn": "2026-07-17",
   "retiredReason": "The build-once creative brief predates the shared interoperability-layer framing and must not be reused as the current visual prompt.",
+  "promotedOutput": "outputs/figma/preview.png",
+  "promotedAs": "../../docs/media/subagent-harness-share.png",
   "canonicalRepository": "https://github.com/ERerGB/subagent-harness",
   "brief": "brief.md",
   "scorecard": "scorecard.md",
