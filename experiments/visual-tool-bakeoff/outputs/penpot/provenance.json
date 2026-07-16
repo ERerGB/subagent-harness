@@ -1,0 +1,24 @@
+{
+  "tool": "Penpot MCP",
+  "date": "2026-07-16",
+  "status": "blocked_on_connector",
+  "output": null,
+  "attempt": {
+    "availablePenpotTools": 0,
+    "officialRemoteRequirements": [
+      "Enable MCP in the Penpot account",
+      "Generate and securely retain an MCP key",
+      "Register the remote MCP URL with the agent client",
+      "Open a Penpot design file",
+      "Connect the in-file MCP plugin and keep the page focused"
+    ]
+  },
+  "references": [
+    "https://help.penpot.app/mcp/",
+    "https://github.com/penpot/penpot-mcp"
+  ],
+  "knownLimitations": [
+    "Visual quality cannot be evaluated without the user-owned account and live file connection.",
+    "The current-page plugin coupling adds onboarding and session-state friction before first production."
+  ]
+}

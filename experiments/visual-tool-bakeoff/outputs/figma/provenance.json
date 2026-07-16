@@ -1,0 +1,27 @@
+{
+  "tool": "Figma Design + Figma MCP",
+  "workspace": "https://www.figma.com/design/Xjo7FtzZYq2eZl2nAAVXsA?node-id=4-2",
+  "revision": "v2",
+  "date": "2026-07-16",
+  "inputBrief": "../../brief.md",
+  "output": {
+    "width": 1280,
+    "height": 640,
+    "bytes": 72315,
+    "sha256": "6c944385a89e99e25a2c6d7682ae2492ee4597d263085d52fe132a685ee51fb0"
+  },
+  "workflow": {
+    "inspectCalls": 1,
+    "writeCalls": 7,
+    "validationScreenshots": 1,
+    "manualCanvasEdits": 0,
+    "previousPreview": "v1-preview.png"
+  },
+  "editability": "Native Figma text, frames, rectangles, ellipses, and imported decorative SVG vectors.",
+  "knownLimitations": [
+    "Canonical editable source currently lives in a hosted Figma file.",
+    "Local PNG export required an additional download step.",
+    "Agent-authored layout still depends on explicit incremental Plugin API calls.",
+    "Motion is represented with editable static paths, packet trails, and live pulses."
+  ]
+}

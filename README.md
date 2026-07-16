@@ -1,51 +1,117 @@
 # subagent-harness
 
-> **Evolve your agent in one place. Use it anywhere.**
+> **Docker for agentic environments.**<br>
+> Define an agent once. Build it for every runtime.
 
-Stop copy-pasting prompts across `.cursorrules`, Claude Code, and your CI pipelines. `subagent-harness` takes your single markdown file and auto-magically translates it for every AI tool you use.
+Modern teams do not work in one agentic environment. Application developers may
+use Cursor, platform engineers Codex, automation authors Claude Code, and the
+product backend a strict JSON contract. Just as polyglot software teams use
+different languages and toolchains, agentic teams now use different end-to-end
+environments. That diversity is expected. What is missing is a shared
+interoperability layer.
 
-📖 **[Read the full story: Why AI Agents need a "Compiler" and Governance Flow](https://dev.to/jz_er/beyond-copy-paste-why-ai-agents-need-a-compiler-and-governance-flow-3dg0)**
+`subagent-harness` applies Docker's **define → build → run** mental model to
+agent definitions. A rich `.agent.md` provides the common abstraction;
+`subagent-compose` validates it and builds native artifacts through target
+adapters. Different teams keep their preferred environments while collaborating
+through one portable contract.
 
-```mermaid
-flowchart LR
-    subgraph State ["Scattered Agent State"]
-        direction TB
-        P[📝 Prompts]
-        C[⚙️ Configs]
-        S[🧩 Skills]
-    end
+> **Boundary:** this project is the build and compatibility layer. It does not import arbitrary vendor-native definitions, erase runtime capability gaps, sandbox, schedule, or execute agents.
 
-    SSOT(("📄 Rich .agent.md<br/><b>(Single Source of Truth)</b>"))
-    
-    COMPILER{{"⚡ subagent-harness<br/><i>(Compiler)</i>"}}
-    
-    subgraph Runtimes ["Target Runtimes"]
-        direction TB
-        IDE["💻 IDE<br/><i>(Cursor, etc.)</i>"]
-        CLI["⌨️ CLI<br/><i>(Claude Code)</i>"]
-        PROD["🚀 Production<br/><i>(JSON Artifacts)</i>"]
-    end
+**Fast paths:** [Understand the problem](#the-problem-agentic-environment-fragmentation) ·
+[Install in two minutes](#quickstart) · [Inspect build targets](#build-targets) ·
+[Embed the API](#programmatic-api) · [Define the integration boundary](#integration-boundary) ·
+[Browse the docs](#documentation-index)
 
-    State -->|"Flatten"| SSOT
-    SSOT -->|"Compile & Validate"| COMPILER
-    COMPILER --> IDE
-    COMPILER --> CLI
-    COMPILER --> PROD
-    
-    %% Styling
-    style SSOT fill:#1f6feb,stroke:#58a6ff,stroke-width:3px,color:#ffffff
-    style COMPILER fill:#2d333b,stroke:#d29922,stroke-width:2px,color:#c9d1d9
-    style IDE fill:#2d333b,stroke:#238636,stroke-width:2px,color:#c9d1d9
-    style CLI fill:#2d333b,stroke:#238636,stroke-width:2px,color:#c9d1d9
-    style PROD fill:#2d333b,stroke:#238636,stroke-width:2px,color:#c9d1d9
-    style Runtimes fill:none,stroke:#8b949e,stroke-dasharray: 5 5,color:#8b949e
-    style State fill:none,stroke:#8b949e,stroke-dasharray: 5 5,color:#8b949e
-    style P fill:#22272e,stroke:#444c56,color:#c9d1d9
-    style C fill:#22272e,stroke:#444c56,color:#c9d1d9
-    style S fill:#22272e,stroke:#444c56,color:#c9d1d9
+<details>
+<summary><strong>README map — expand the top-down view</strong></summary>
+
+- **Evaluate**
+  - [The Problem: Environment Fragmentation](#the-problem-agentic-environment-fragmentation)
+  - [How It Works](#how-it-works)
+  - [Build Targets](#build-targets)
+- **Adopt**
+  - [Quickstart](#quickstart)
+  - [Quality Gates](#quality-gates)
+- **Extend**
+  - [Programmatic API](#programmatic-api)
+  - [Integration Boundary](#integration-boundary)
+- **Operate**
+  - [Project Status and Updates](#project-status-and-updates)
+  - [Documentation Index](#documentation-index)
+
+</details>
+
+## The Problem: Agentic Environment Fragmentation
+
+Agentic development now runs across **heterogeneous environments by default**.
+IDE agents, CLI agents, CI automation, and product runtimes each optimize for a
+different interaction model and expose different schemas, tool bindings,
+configuration fields, discovery rules, and lifecycle contracts.
+
+Environment heterogeneity is not the defect. The missing piece is a shared
+interoperability layer that aggregates changes, abstracts portable semantics,
+and verifies target compatibility without forcing every team onto the same
+tool.
+
+> **Core invariant:** unify the definition, not the environments.
+
+Consider one `changelog-extractor`: the application team invokes it in Cursor,
+the platform team tests it in Codex, and the release service loads production
+JSON. Without a common contract, those integrations become three parallel
+implementations. Every schema or tool change requires manual coordination, and
+“compatibility” remains a social promise rather than a testable property.
+
+Across `A` agent definitions and `R` runtimes, this becomes `A × R`
+hand-maintained mappings. A canonical definition model plus reusable target
+adapters separates the `A` authoring surfaces from the `R` compatibility
+implementations.
+
+`subagent-harness` supplies that interoperability layer:
+
+| Layer | Engineering role |
+| --- | --- |
+| **Canonical aggregation** | Teams converge changes on one versioned `.agent.md` plus optional `.agent.ext.yaml` |
+| **Portable abstraction** | The definition model expresses shared agent semantics independently of vendor serialization |
+| **Target compatibility** | Deterministic adapters emit runtime-native Cursor, Codex, Claude Code, and production artifacts |
+| **Contract validation** | Schema and runtime-contract gates verify each generated projection before consumption |
+
+Dev-to-production promotion is one route through this layer, not the layer's
+primary abstraction.
+
+The architecture borrows from compiler toolchains: target-independent concepts
+sit above target-specific backends. LLVM documents this separation between its
+internal representation and
+[target-specific code generation](https://llvm.org/docs/CodeGenerator.html);
+OpenAPI applies a related idea through a
+[language-agnostic interface description](https://spec.openapis.org/oas/v3.0.4.html).
+
+Today, aggregation happens at the canonical source: teams collaborate on the
+portable definition, then compile outward. The harness does not yet reverse-map
+or merge arbitrary runtime-native files. Compatibility means that each output
+satisfies its target contract; it does not imply identical features or behavior
+across models, tools, and runtimes.
+
+## How It Works
+
+| Docker mental model | `subagent-harness` |
+| --- | --- |
+| `Dockerfile` | Rich `*.agent.md` source definition |
+| `docker build` | `subagent-compose --apply` |
+| Target image | Cursor, Codex, Claude Code, or production artifact |
+| Container runtime | The agentic environment that discovers and runs the artifact |
+
+```text
+agents/changelog-extractor.agent.md       # Author this
+              │
+              └── subagent-compose --apply
+                    ├── .cursor/agents/changelog-extractor.md
+                    ├── .codex/agents/changelog-extractor.md
+                    ├── .claude/skills/changelog-extractor/SKILL.md
+                    └── dist/agents/changelog-extractor.json
 ```
 
-## Supported Targets
+### Build Targets
 
 | Target | Generated Format | Purpose |
 | ------ | ---------------- | ------- |
@@ -54,167 +120,72 @@ flowchart LR
 | **Claude Code** | `.claude/skills/*.md` | Global CLI skills |
 | **Production** | `dist/agents/*.json` | CI/CD pipelines & backend SDK consumption |
 
-*More integrations planned: Windsurf, Copilot, Cline.*
-
----
-
-## How it works: The Output
-
-You write one file. The harness generates the rest.
-
-```text
-# 1. You write this (Single Source of Truth)
-my-agents/
-└── changelog-extractor.agent.md   
-
-# 2. Run subagent-harness
-$ pnpm exec subagent-compose --apply
-
-# 3. It generates these auto-magically:
-.cursor/agents/
-└── changelog-extractor.md         # Formatted natively for Cursor
-.codex/agents/
-└── changelog-extractor.md         # Same markdown; OpenAI Codex CLI (`runtime: codex` in config)
-.claude/skills/
-└── changelog-extractor/SKILL.md   # Formatted natively for Claude Code
-dist/
-└── changelog-extractor.json       # Strict JSON for your backend/CI
-```
-
----
-
-## The Problem — "Living Agent" Drift
-
-Agents are **living artifacts**. Their prompts, configs, and skills evolve constantly.
-When the same agent lives in two places — your IDE and your CI pipeline — iteration guarantees drift.
-
-### A ground-truth story
-
-Bob builds `changelog-extractor`, a tiny sub-agent:
-
-| Component | Initial state |
-|-----------|---------------|
-| **Prompt** | *"Read recent commits, group by feature/fix, output a markdown list."* |
-| **Skills** | `read_git_log` · `read_jira_ticket` |
-
-He copies this definition into **Cursor** (`.cursor/agents/`) for local dev, and into the **CI pipeline** (rich JSON) for automated GitHub Releases.
-
-Then the iteration begins:
-
-| # | What changed | Detail |
-|---|-------------|--------|
-| 1 | **Format** | Marketing wants customer-facing language → prompt rewritten |
-| 2 | **New skill** | Needs PR context → adds `fetch_pr_description` |
-| 3 | **Config** | LLM hallucinating → `temperature: 0.1`, hard constraint added |
-
-Bob updates the CI config. He forgets to sync the Cursor copy.
-
-Developers now run a **stale local agent** that hallucinates, misses PR context, and outputs raw technical jargon — while the production version works fine.
-
-> **Root cause:** No Single Source of Truth. No automated composition.
-> Iterating on an agent _guarantees_ environment drift.
-
-**How subagent-harness fixes it:**
-1. **Single file** — Write `changelog-extractor.agent.md` once. This is the only copy.
-2. **Auto-validate** — On commit, the harness checks structure and required fields.
-3. **Compose per runtime** — `compose` emits full config for CI, and stripped proprietary `.md` for Cursor.
-4. **Zero drift** — Next iteration, edit one file. The change propagates everywhere automatically.
-
----
+*More integrations are planned, including Windsurf, Copilot, and Cline.*
 
 ## Quickstart
 
 ```bash
-# 1. Install
+# Install
 pnpm add -D subagent-harness
 
-# 2. Preview what the harness will generate (no file writes)
+# Preview generated files without writing them
 pnpm exec subagent-compose \
   --src ~/my-custom-agents \
   --dst ~/.cursor/agents \
   --dry-run
 
-# 3. Generate runtime-ready files
+# Build runtime-ready files
 pnpm exec subagent-compose \
   --src ~/my-custom-agents \
   --dst ~/.cursor/agents \
   --apply
 ```
 
-Reload your IDE window → open the Subagents list → your agent is discovered, formatted, and in sync with the SSOT.
+Reload the IDE window and open its agent list. Run `--apply` again at any time;
+unchanged sources produce the same artifacts.
 
-With `subagent.config.json`, compose only selected runtimes ([issue #14](https://github.com/ERerGB/subagent-harness/issues/14)):
+With `subagent.config.json`, build only the targets needed by the current
+workflow:
 
 ```bash
 pnpm exec subagent-compose --apply --target codex
 pnpm exec subagent-compose --apply --target cursor --target production
-pnpm exec subagent-compose --apply --target all   # same as omitting --target
 ```
 
-`--src` / `--dst` legacy mode only allows `--target cursor` or `--target all`.
+Go deeper: [5-Minute Quickstart](docs/QUICKSTART_5_MIN.md) ·
+[Target selection and production JSON](docs/PRODUCTION_JSON_CONTRACT.md)
 
-### Production JSON contract ([issue #15](https://github.com/ERerGB/subagent-harness/issues/15))
+## Quality Gates
 
-For `runtime: production`, compose runs an extra **SSOT fidelity** check on the JSON (including during `--dry-run`):
+Composition is a governance pipeline, not only a format conversion:
 
-- `prompt` must be a non-empty string
-- If the source declares a `model` with a name (top-level or via the target’s `profile`), `model` in JSON must be an object with the same `name` (catches silent `"inherited"` / wrong-provider fallbacks downstream)
-- If `.agent.ext.yaml` defines `contentSchema` as a mapping, top-level keys must match the composed JSON
-
-Any parse failure, validation error, or contract violation increments the failure count; the CLI exits **1** so CI can gate on `subagent-compose --dry-run` or `--apply`.
-
-**Drift check** (optional): after `--apply`, confirm on-disk artifacts still match a fresh compose from SSOT:
+| Layer | Catches | Runs where |
+| --- | --- | --- |
+| **L1 · Schema** | Missing fields, invalid YAML, parser errors | Local and CI |
+| **L2 · Runtime contract** | Output that the target runtime cannot consume | Local and CI |
+| **L3 · Live smoke** | A real CLI, IDE, or backend rejecting the artifact | Optional or required by policy |
 
 ```bash
-pnpm exec subagent-compose --apply --target production
+pnpm test:e2e    # L1 + L2 + configured L3 probes
+pnpm test:matrix # reusable target matrix + strict production probe
+```
+
+Generated-state checks enforce artifact freshness and production projection
+fidelity:
+
+```bash
+pnpm exec subagent-compose --check
 pnpm exec subagent-compose --verify --target production
 ```
 
-`--verify` requires at least one active `production` target. It exits **2** if combined with `--apply` or `--clean`, or if no production target is selected.
+Reference: [Quality Gates](docs/QUALITY_GATES.md) ·
+[Production JSON Contract](docs/PRODUCTION_JSON_CONTRACT.md) ·
+[SDK Probe Contract](docs/SDK_PROBE_CONTRACT.md)
 
-> Full walkthrough: **[5-Minute Quickstart](docs/QUICKSTART_5_MIN.md)**
+## Programmatic API
 
----
-
-## Built-in Quality Gates
-
-It's not just a format converter; it's a governance pipeline. Before any agent is compiled, it passes through 3 layers of tests to ensure absolute reliability:
-
-1. **Schema Validation (L1):** Prevents missing fields, broken YAML frontmatter, or syntax errors.
-2. **Runtime Contract (L2):** Ensures the generated output matches exactly what Cursor/Claude actually supports.
-3. **Live Smoke Check (L3):** (Optional) Boots up a real process to verify the compiled agent won't crash your IDE or backend.
-
-Run all layers locally:
-```bash
-pnpm test:e2e
-```
-
-Run the reusable matrix runner (L1/L2 + strict production probe):
-```bash
-pnpm test:matrix
-```
-
-To include real Subject-Harness probes in strict mode:
-```bash
-SUBJECT_HARNESS_CLI_CMD='subject-harness run --artifact "$SUBJECT_ARTIFACT_PATH"' \
-SUBJECT_HARNESS_API_MODULE=./path/to/subject-api-probe.mjs \
-node scripts/run-matrix.mjs --targets "production,subject-cli,subject-api" --strict
-```
-
-Optional L3 probes for composed Markdown agents: set `CURSOR_RUNTIME_CHECK_CMD`, `CODEX_RUNTIME_CHECK_CMD`, or `CLAUDE_RUNTIME_CHECK_CMD` to a shell command; `pnpm test:l3` passes `AGENT_FILE` pointing at the temp artifact. Markdown probes use a **5-minute** Vitest timeout so a real `codex exec` / IDE round-trip can finish. To **require** a probe (fail CI if unset), add that target to `L3_REQUIRE_TARGETS` (comma-separated, e.g. `production,codex`).
-
-Example (OpenAI Codex CLI — instructions from the composed agent file on stdin):
-
-```bash
-export CODEX_RUNTIME_CHECK_CMD='codex exec -s read-only --skip-git-repo-check --ephemeral - < "$AGENT_FILE"'
-pnpm test:l3
-```
-
----
-
-## Programmatic Embedding (CLI / Production)
-
-`subagent-harness` is not only a CLI. You can import it as a package inside your own terminal app, backend worker, or release pipeline.
+`subagent-harness` can also be embedded in a terminal app, backend worker, or
+release pipeline.
 
 ```ts
 import { readFileSync } from "node:fs";
@@ -236,129 +207,71 @@ if (!validation.ok) {
   );
 }
 
-// Built-in targets
 const cursorAgent = composeSubagent(doc, "cursor");
-const codexAgent = composeSubagent(doc, "codex"); // same markdown as cursor; use with `.codex/agents/`
-
-// You can also map `doc.frontmatter` + `doc.body` into your own runtime schema.
-// For `production` JSON, import `validateProductionComposeOutput` to mirror the CLI SSOT checks (issue #15).
+const codexAgent = composeSubagent(doc, "codex");
 ```
 
-This lets product runtime and IDE runtime consume the same SSOT file while keeping environment-specific adapters isolated.
+This keeps IDE and product runtimes on the same source while isolating their
+adapters. For production fidelity checks, import
+`validateProductionComposeOutput` or read the
+[Production JSON Contract](docs/PRODUCTION_JSON_CONTRACT.md).
 
----
+## Integration Boundary
 
-## Demo Video
+The harness standardizes the portable build layer. Your product still owns the
+runtime semantics:
 
-[Managing AI Agent Drift](docs/media/Managing_AI_Agent_Drift.mp4)
+| The harness owns | Your project owns |
+| --- | --- |
+| Parse, validate, and resolve profiles | Interpret extension fields |
+| Emit runtime-native artifacts | Compose scenarios and orchestrate agents |
+| Validate generated contracts | Schedule lifecycle and bind skills to tools |
 
-<video controls width="100%">
-  <source src="docs/media/Managing_AI_Agent_Drift.mp4" type="video/mp4" />
-  Your browser does not support the video tag.
-</video>
+**The harness stores `extensions` but never interprets them.** Domain-specific
+meaning stays in the consuming runtime.
 
----
+Deep dive: [Integration Boundary](docs/INTEGRATION_BOUNDARY.md)
 
-## Staying Updated
+## Project Status and Updates
 
-> **Status:** Pre-RC. The format and API are stabilizing but not yet frozen. Follow releases to stay informed.
+> **Status:** Pre-RC. The format and API are stabilizing but are not frozen.
 
-subagent-harness uses **git tags and GitHub Releases** as the primary version signal. Choose whichever subscription method fits your workflow:
+Git tags and GitHub Releases are the primary version signal:
 
-| Method | How | Best for |
-|--------|-----|----------|
-| **Watch → Releases** | Click **Watch** on this repo → **Custom** → check **Releases only** | Lightweight human notification |
-| **Dependency automation** | Configure [Dependabot](https://docs.github.com/en/code-security/dependabot), [Renovate](https://docs.renovatebot.com/), or similar tools to monitor this repo's tags | Auto-PR when a new version is available |
-| **Downstream registry** | Add your project to [`downstream.json`](downstream.json) via PR | Receive an automated issue on each release |
-| **RSS** | Subscribe to `https://github.com/ERerGB/subagent-harness/releases.atom` | Feed reader integration |
+| Method | Best for |
+| --- | --- |
+| **Watch → Custom → Releases** | Lightweight human notification |
+| [Dependabot](https://docs.github.com/en/code-security/dependabot) or [Renovate](https://docs.renovatebot.com/) | Automated upgrade pull requests |
+| [`downstream.json`](downstream.json) | An issue in a registered downstream project on release |
+| [Releases RSS](https://github.com/ERerGB/subagent-harness/releases.atom) | Feed readers and release automation |
 
----
+## Documentation Index
 
-## Samantha Mini-Test
+| Document | Use it when you need to... |
+| --- | --- |
+| [5-Minute Quickstart](docs/QUICKSTART_5_MIN.md) | Reach a first successful compose |
+| [Production JSON Contract](docs/PRODUCTION_JSON_CONTRACT.md) | Validate fidelity, target selection, and exit codes |
+| [Quality Gates](docs/QUALITY_GATES.md) | Configure L1/L2/L3 and real-runtime probes |
+| [Integration Boundary](docs/INTEGRATION_BOUNDARY.md) | Decide what belongs in the harness versus your runtime |
+| [YAML Subset](docs/YAML_SUBSET.md) | Check parser-supported YAML features |
+| [SDK Probe Contract](docs/SDK_PROBE_CONTRACT.md) | Implement an L3 SDK or process probe |
+| [Samantha Quickstart](docs/SAMANTHA_QUICKSTART.md) | Inspect a small end-to-end integration |
+| [Beta Feedback Form](docs/BETA_FEEDBACK.md) | Report structured tester feedback |
 
-A small integration of the [Samantha project](https://github.com/leilei926524-tech/samantha) (emotional AI companion from *Her*) into subagent-harness:
-
-```bash
-pnpm compose --dry-run   # Preview
-pnpm compose --apply     # Compose to .cursor/agents
-```
-
-See [Samantha Quickstart](docs/SAMANTHA_QUICKSTART.md) for full walkthrough.
-
----
-
-## Integration Best Practices
-
-### The Extension Boundary
-
-When integrating `subagent-harness` into your project, the most important architectural decision is understanding **where the harness stops and your project begins**.
-
-```text
-subagent-harness (standardized)          Your project (project-specific)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━            ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-.agent.md → parse → validate              Interpret extensions semantics
-.agent.ext.yaml → merge extensions        Scenario bundle resolution
-Profile → resolve model + skills          Agent orchestration / scheduling
-Output → AgentDefinition or artifact      Runtime lifecycle (spawn, freeze…)
-Contract validation                       Map skill names → tool implementations
-```
-
-**The harness never interprets `extensions`.** It passes them through as an opaque `Record<string, unknown>`. All domain-specific logic built on extension fields belongs in your project's runtime layer.
-
-### What goes where
-
-| Concern | Where it lives | Why |
-|---------|---------------|-----|
-| Agent identity (name, description, prompt) | Harness — `.agent.md` | Universal across all runtimes |
-| Model config and profile resolution | Harness — `loadAgent()` | Deterministic merge logic, runtime-agnostic |
-| Extension fields (`config`, `contentSchema`, `archetype`…) | Harness stores, **your project interprets** | Semantics are domain-specific |
-| Scenario bundles (`refs`, `overrides`, `disabled`) | Your project only | Product-level composition decisions |
-| Agent scheduling and lifecycle | Your project only | Depends on your interaction model |
-| Skill → tool binding | Your project only | Tools are runtime-specific |
-
-### Example: consuming production artifacts
-
-```ts
-import { loadAgentFromDisk, composeSubagent } from "subagent-harness";
-
-// Harness: SSOT → typed artifact
-const doc = loadAgentFromDisk("agents/my-agent.agent.md");
-const json = JSON.parse(composeSubagent(doc, "production"));
-
-// Your project: interpret extensions, wire up runtime
-const maxIdleTurns = json.config?.maxIdleTurns ?? 10;  // your domain logic
-const contentSchema = json.contentSchema;                // your card schema
-// ... feed into your own scheduler / executor
-```
-
-### Why scenario bundles are NOT in the harness
-
-A scenario bundle (e.g. "which agents run together, with what overrides, excluding which others") is a **product decision**. Different projects compose agents differently:
-
-- A meeting app might run 3 agents in parallel monitoring a transcript
-- A CI pipeline might run 1 agent per PR sequentially
-- A CLI tool might spawn agents as task executors
-
-The harness provides `loadAgent()` for each individual agent. **How you compose multiple agents is your product's job, not a library concern.**
-
-> See [issue #16](https://github.com/ERerGB/subagent-harness/issues/16) for the `loadAgent()` typed API that formalizes this boundary.
-
----
-
-## Docs
+<details>
+<summary><strong>Governance, operations, and research documents</strong></summary>
 
 | Document | Purpose |
-|----------|---------|
-| [5-Minute Quickstart](docs/QUICKSTART_5_MIN.md) | Hands-on onboarding guide |
-| [Samantha Quickstart](docs/SAMANTHA_QUICKSTART.md) | Samantha mini-test integration |
-| [YAML Subset](docs/YAML_SUBSET.md) | Supported YAML features and parser boundaries |
-| [Beta Feedback Form](docs/BETA_FEEDBACK.md) | Structured feedback for testers |
-| [Governance Agreement](docs/AGREEMENT.md) | Maintainer agreement & migration triggers |
+| --- | --- |
 | [Governance Navigation](docs/GOVERNANCE.md) | Governance entry point |
-| [Trusted Publishing](docs/TRUSTED_PUBLISHING.md) | npm publish via GitHub Actions OIDC |
-| [SDK Probe Contract](docs/SDK_PROBE_CONTRACT.md) | L3 real-runtime probe input/output and exit-code contract |
+| [Governance Agreement](docs/AGREEMENT.md) | Maintainer agreement and migration triggers |
+| [Trusted Publishing](docs/TRUSTED_PUBLISHING.md) | npm publishing with GitHub Actions OIDC |
 | [Protocol Iteration Principles](docs/PROTOCOL_ITERATION_PRINCIPLES.md) | Lean core-protocol evolution rules |
-| [Project Structuring Worklog](docs/PROJECT_STRUCTURING_WORKLOG.md) | Project-by-project import and protocol observations |
+| [Project Structuring Worklog](docs/PROJECT_STRUCTURING_WORKLOG.md) | Import and protocol observations by project |
+| [Developer-tool Visual Distribution Research](docs/research/developer-tool-visual-distribution.md) | Visual-system and share-card decisions |
+| [Developer-product Research Route](docs/research/developer-product-research-route.md) | Repository-, CLI-, SDK-, and middleware-first research route |
+
+</details>
 
 ## License
 

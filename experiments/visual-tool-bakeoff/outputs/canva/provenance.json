@@ -1,0 +1,44 @@
+{
+  "tool": "Canva generate-design",
+  "date": "2026-07-16",
+  "jobId": "0d512c57-1f1d-45ad-b9f6-fc4185c15d0c",
+  "inputBrief": "../../brief.md",
+  "designType": "twitter_post",
+  "workflow": {
+    "generationCalls": 1,
+    "candidateCount": 4,
+    "materializedCandidates": 0,
+    "manualCanvasEdits": 0
+  },
+  "candidates": [
+    {
+      "id": "dg-32badc9a-6064-4d89-8202-66b16458b236",
+      "preview": "candidates/01.png",
+      "gate": "fail",
+      "issues": ["Missing headline", "Missing Codex", "Missing repository footer", "Compiler label casing changed"]
+    },
+    {
+      "id": "dg-39b7b80e-d508-43fc-ab84-5976434ab3ff",
+      "preview": "candidates/02.png",
+      "gate": "fail",
+      "issues": ["Pseudo-text", "Template placeholder footer", "Required labels changed or missing"]
+    },
+    {
+      "id": "dg-3cd5f42b-3640-4c1e-ab39-bc3187acc9fb",
+      "preview": "candidates/03.png",
+      "gate": "fail",
+      "issues": ["Compiler/output semantics are incorrect", "Required compiler label is not legible", "Headline punctuation changed"]
+    },
+    {
+      "id": "dg-9d1c1a06-6620-44df-9d8e-6e61ebaed695",
+      "preview": "candidates/04.png",
+      "gate": "fail",
+      "issues": ["Multiple spelling and casing errors", "Template attribution placeholder", "Ambiguous bidirectional flow"]
+    }
+  ],
+  "knownLimitations": [
+    "The generation endpoint does not offer a native 1280x640 design type.",
+    "A candidate must be selected and materialized before exact resizing, editing, or export.",
+    "All four first-pass candidates violated fixed-content gates."
+  ]
+}

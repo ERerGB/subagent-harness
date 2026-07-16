@@ -1,0 +1,48 @@
+{
+  "experiment": "developer-proof-visual-bakeoff-v1",
+  "date": "2026-07-16",
+  "status": "retired",
+  "retiredOn": "2026-07-17",
+  "retiredReason": "The build-once creative brief predates the shared interoperability-layer framing and must not be reused as the current visual prompt.",
+  "canonicalRepository": "https://github.com/ERerGB/subagent-harness",
+  "brief": "brief.md",
+  "scorecard": "scorecard.md",
+  "variants": [
+    {
+      "id": "code-first",
+      "status": "complete",
+      "revision": "v2",
+      "source": "outputs/code-first/source.svg",
+      "preview": "outputs/code-first/preview.png",
+      "previousPreview": "outputs/code-first/v1-preview.png"
+    },
+    {
+      "id": "figma",
+      "status": "complete",
+      "revision": "v2",
+      "workspace": "https://www.figma.com/design/Xjo7FtzZYq2eZl2nAAVXsA",
+      "source": "https://www.figma.com/design/Xjo7FtzZYq2eZl2nAAVXsA?node-id=4-2",
+      "preview": "outputs/figma/preview.png",
+      "previousPreview": "outputs/figma/v1-preview.png"
+    },
+    {
+      "id": "penpot",
+      "status": "blocked_on_connector",
+      "source": null,
+      "preview": null,
+      "blocker": "No Penpot MCP server, MCP key, focused design file, or connected in-file plugin is available in this session."
+    },
+    {
+      "id": "canva",
+      "status": "candidates_generated_gate_failed",
+      "source": null,
+      "preview": "outputs/canva/candidates/01.png",
+      "candidatePreviews": [
+        "outputs/canva/candidates/01.png",
+        "outputs/canva/candidates/02.png",
+        "outputs/canva/candidates/03.png",
+        "outputs/canva/candidates/04.png"
+      ]
+    }
+  ]
+}

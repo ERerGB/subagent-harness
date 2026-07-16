@@ -1,0 +1,22 @@
+{
+  "tool": "Code-first SVG + @resvg/resvg-js",
+  "version": "@resvg/resvg-js 2.6.2",
+  "revision": "v2",
+  "date": "2026-07-16T15:54:16.267Z",
+  "inputBrief": "../../brief.md",
+  "output": {
+    "width": 1280,
+    "height": 640,
+    "bytes": 94305
+  },
+  "workflow": {
+    "renderCommand": "pnpm visual:bakeoff:code",
+    "manualCanvasEdits": 0,
+    "previousPreview": "v1-preview.png"
+  },
+  "knownLimitations": [
+    "Geometry and hierarchy are deterministic but require code changes.",
+    "Typeface rendering depends on available system fonts.",
+    "Motion is communicated through static packet trails and live signals rather than literal animation."
+  ]
+}

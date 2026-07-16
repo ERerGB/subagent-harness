@@ -1,5 +1,12 @@
 # Beyond Copy-Paste: Why AI Agents Need a "Compiler" and Governance Flow
 
+> [!WARNING]
+> **Archived positioning draft.** This article records an earlier framing in
+> which definition drift was presented as the primary problem. The current
+> product model is a shared interoperability layer across heterogeneous agentic
+> environments. See the
+> [current README](../../README.md#the-problem-agentic-environment-fragmentation).
+
 Recently, I built a small open-source tool and enthusiastically shared it with a senior architect friend. I pitched it like this:
 
 > "Simply put, it flattens a subagent into a markdown file, making it portable to any runtime at any time."
