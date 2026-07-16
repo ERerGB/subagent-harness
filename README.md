@@ -20,12 +20,17 @@ through one portable contract.
 
 [![One portable agent definition compiled into runtime-native artifacts for Cursor, Codex, Claude Code, and production](docs/media/subagent-harness-share.png)](https://github.com/ERerGB/subagent-harness)
 
-Click the visual to open the canonical repository. Copy this block to share the
-same image and destination:
+Click the visual to open the canonical repository. Expand the row below to copy
+the same image and destination.
+
+<details>
+<summary><strong>Share this visual</strong> — copy the linked Markdown embed</summary>
 
 ```md
 [![Docker for agentic environments](https://raw.githubusercontent.com/ERerGB/subagent-harness/main/docs/media/subagent-harness-share.png)](https://github.com/ERerGB/subagent-harness)
 ```
+
+</details>
 
 **Fast paths:** [Understand the problem](#the-problem-agentic-environment-fragmentation) ·
 [Install in two minutes](#quickstart) · [Inspect build targets](#build-targets) ·
@@ -35,7 +40,7 @@ same image and destination:
 <details>
 <summary><strong>README map — expand the top-down view</strong></summary>
 
-- **Evaluate**
+- **Understand**
   - [The Problem: Environment Fragmentation](#the-problem-agentic-environment-fragmentation)
   - [How It Works](#how-it-works)
   - [Build Targets](#build-targets)
@@ -51,7 +56,11 @@ same image and destination:
 
 </details>
 
-## The Problem: Agentic Environment Fragmentation
+<br>
+
+## Part 1 · Understand
+
+### The Problem: Agentic Environment Fragmentation
 
 Agentic development now runs across **heterogeneous environments by default**.
 IDE agents, CLI agents, CI automation, and product runtimes each optimize for a
@@ -88,6 +97,9 @@ implementations.
 Dev-to-production promotion is one route through this layer, not the layer's
 primary abstraction.
 
+<details>
+<summary><strong>Compatibility semantics and architectural prior art</strong></summary>
+
 The architecture borrows from compiler toolchains: target-independent concepts
 sit above target-specific backends. LLVM documents this separation between its
 internal representation and
@@ -101,7 +113,9 @@ or merge arbitrary runtime-native files. Compatibility means that each output
 satisfies its target contract; it does not imply identical features or behavior
 across models, tools, and runtimes.
 
-## How It Works
+</details>
+
+### How It Works
 
 | Docker mental model | `subagent-harness` |
 | --- | --- |
@@ -131,7 +145,11 @@ agents/changelog-extractor.agent.md       # Author this
 
 *More integrations are planned, including Windsurf, Copilot, and Cline.*
 
-## Quickstart
+<br>
+
+## Part 2 · Adopt
+
+### Quickstart
 
 ```bash
 # Install
@@ -164,7 +182,7 @@ pnpm exec subagent-compose --apply --target cursor --target production
 Go deeper: [5-Minute Quickstart](docs/QUICKSTART_5_MIN.md) ·
 [Target selection and production JSON](docs/PRODUCTION_JSON_CONTRACT.md)
 
-## Quality Gates
+### Quality Gates
 
 Composition is a governance pipeline, not only a format conversion:
 
@@ -191,7 +209,11 @@ Reference: [Quality Gates](docs/QUALITY_GATES.md) ·
 [Production JSON Contract](docs/PRODUCTION_JSON_CONTRACT.md) ·
 [SDK Probe Contract](docs/SDK_PROBE_CONTRACT.md)
 
-## Programmatic API
+<br>
+
+## Part 3 · Extend
+
+### Programmatic API
 
 `subagent-harness` can also be embedded in a terminal app, backend worker, or
 release pipeline.
@@ -225,7 +247,7 @@ adapters. For production fidelity checks, import
 `validateProductionComposeOutput` or read the
 [Production JSON Contract](docs/PRODUCTION_JSON_CONTRACT.md).
 
-## Integration Boundary
+### Integration Boundary
 
 The harness standardizes the portable build layer. Your product still owns the
 runtime semantics:
@@ -241,7 +263,11 @@ meaning stays in the consuming runtime.
 
 Deep dive: [Integration Boundary](docs/INTEGRATION_BOUNDARY.md)
 
-## Project Status and Updates
+<br>
+
+## Part 4 · Operate
+
+### Project Status and Updates
 
 > **Status:** Pre-RC. The format and API are stabilizing but are not frozen.
 
@@ -254,7 +280,7 @@ Git tags and GitHub Releases are the primary version signal:
 | [`downstream.json`](downstream.json) | An issue in a registered downstream project on release |
 | [Releases RSS](https://github.com/ERerGB/subagent-harness/releases.atom) | Feed readers and release automation |
 
-## Documentation Index
+### Documentation Index
 
 | Document | Use it when you need to... |
 | --- | --- |
@@ -282,6 +308,6 @@ Git tags and GitHub Releases are the primary version signal:
 
 </details>
 
-## License
+### License
 
 Apache-2.0
