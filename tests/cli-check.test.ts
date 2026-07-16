@@ -1,23 +1,28 @@
 /**
  * Integration tests for the --check CLI flag (issue #20).
  *
- * Spawns the CLI via bun so TypeScript runs without a prior build step.
+ * Prefer the built CLI so CI does not depend on Bun being installed.
  * Each test sets up its own temp dir to keep state isolated.
  */
 
 import { describe, it, expect, afterEach } from "vitest";
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, utimesSync } from "node:fs";
+import { existsSync, mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, utimesSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { spawnSync } from "node:child_process";
 
-const CLI = resolve(import.meta.dirname, "../src/cli.ts");
+const SOURCE_CLI = resolve(import.meta.dirname, "../src/cli.ts");
+const BUILT_CLI = resolve(import.meta.dirname, "../dist/cli.js");
 const FIXTURE_AGENT = resolve(import.meta.dirname, "fixtures/valid-minimal.agent.md");
 const FIXTURE_CONTENT = readFileSync(FIXTURE_AGENT, "utf8");
 
 /** Invoke the CLI and return { stdout, stderr, status }. */
 function runCli(args: string[], cwd: string) {
-  const result = spawnSync("bun", ["run", "--no-install", CLI, ...args], {
+  const [command, commandArgs] = existsSync(BUILT_CLI)
+    ? [process.execPath, [BUILT_CLI, ...args]]
+    : ["bun", ["run", "--no-install", SOURCE_CLI, ...args]];
+
+  const result = spawnSync(command, commandArgs, {
     cwd,
     encoding: "utf8",
     timeout: 15_000,
