@@ -28,6 +28,7 @@
     "test:matrix": "node scripts/run-matrix.mjs --targets \"production\" --strict",
     "test:e2e": "pnpm test:l1 && pnpm test:l2 && pnpm test:l3",
     "test:watch": "vitest",
+    "workflow:check": "node scripts/check-workflows.mjs",
     "docs:check": "node scripts/check-doc-links.mjs README.md docs/PRODUCTION_JSON_CONTRACT.md docs/QUALITY_GATES.md docs/INTEGRATION_BOUNDARY.md",
     "visual:embed-repository": "node scripts/embed-png-repository-link.mjs docs/media/subagent-harness-share.png https://github.com/ERerGB/subagent-harness",
     "clean": "rm -rf dist",

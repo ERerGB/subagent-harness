@@ -26,6 +26,11 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Validate workflows
+        run: |
+          pnpm workflow:check
+          bash -n scripts/notify-downstream.sh
+
       - name: Build
         run: pnpm build
 
@@ -42,4 +47,3 @@ jobs:
 
       - name: Package dry-run
         run: npm pack --dry-run
-
