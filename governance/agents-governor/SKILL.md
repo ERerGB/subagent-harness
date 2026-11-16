@@ -1,66 +1,38 @@
 ---
 name: agents-governor
-description: Govern rich agent definitions through a strict, repeatable pipeline (audit, discovery audit, compose, smoke). Use when adding or updating agent files under archetypes and before release.
+description: Validate rich agent definitions and inspect deterministic runtime composition with subagent-harness. Use for agent definition, adapter, or discovery changes in a repository that uses this compiler.
 ---
 
 # Agents Governor
 
-Skill-first governance for `subagent-harness`.
+Resolve the consuming repository and its `subagent.config.json` before choosing
+source and target directories. The compiler's schema and the consumer's extension
+validator define the contract; a historical project's fields are not global rules.
+Read [reference.md](reference.md) for the verification boundaries.
 
-## When to Use
+## Validate and compose
 
-- A `*.agent.md` file is added/modified.
-- Adapter compose logic changes.
-- Before publishing a release.
-- When runtime discovery issues appear (missing agent, wrong description, drift).
+1. Read the installed package version, repository scripts, source definitions,
+   target configuration, and any consumer extension validator.
+2. Use the current compiler to parse and validate definitions. Keep required-field
+   errors separate from optional-model/profile warnings.
+3. Run a composition preview from the consuming repository. With a built checkout,
+   use `node /absolute/subagent-harness/dist/cli.js --dry-run`; with the package
+   installed, use `subagent-compose --dry-run`. Both read the current directory's
+   `subagent.config.json`. Explicit `--src`/`--dst` is the legacy Cursor path;
+   use configuration for other runtimes.
+4. Inspect generated names, target paths, collisions and intended scope before an
+   authorized `--apply`. Do not invoke `--clean` as part of ordinary verification.
+5. After apply, run the same compiler with `--check` to detect source/output drift.
+   For a configured production target, `--verify` checks its compose contract;
+   it does not run a model or establish behavioral parity.
 
-## Workflow
+When changing this compiler repository, use its actual package scripts:
+`pnpm typecheck`, `pnpm test`, and `pnpm build`. Consumer repositories may provide
+additional audit scripts; inspect them rather than assuming `agents:*` commands
+exist. Runtime smoke tests require their own configured runtime and authorization.
 
-1. **Audit**
-   - Validate required schema fields and invariants.
-2. **Audit Discovery**
-   - Check name uniqueness, collisions, and source/target drift.
-3. **Compose**
-   - Generate runtime-compatible subagent files from rich sources.
-4. **Smoke**
-   - Verify generated subagents are runnable and return expected shape.
+## Report
 
-## Commands (planned)
-
-```bash
-# 1) Audit
-pnpm agents:audit
-
-# 2) Discovery audit
-pnpm agents:audit-discovery
-
-# 3) Compose (dry-run then apply)
-pnpm agents:compose
-pnpm agents:compose -- --apply
-
-# 4) Full gate
-pnpm agents:check
-```
-
-If the commands are not available yet, run the equivalent local scripts and
-report the gap as `E_GOVERNANCE_MISSING_COMMAND`.
-
-## Safety Rules
-
-- Dry-run first for mutating commands.
-- Never treat composed output as source of truth.
-- Block merge on failed audit checks.
-- Keep error messages actionable (file + field + reason).
-
-## Output Contract
-
-For each run, report:
-
-- Passed/failed checks
-- Files affected
-- Determinism result (idempotent or drifted)
-- Next action recommendation
-
-## Additional Rules
-
-See `reference.md` for full rule matrix and error code conventions.
+Report the source and target, commands and outcomes, changed files, drift result,
+and any runtime behavior left unverified. Composed files remain derived artifacts.
