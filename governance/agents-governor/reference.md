@@ -1,53 +1,23 @@
-# Agents Governor Reference
+# Agents Governor reference
 
-## Rule Matrix (v0)
+## Authoritative contracts
 
-### Schema Rules
+- `src/validate.ts` validates rich definitions: lowercase name, description of at
+  least three characters, and nonempty prompt body. Optional model/profile blocks
+  have their own constraints. Read the installed version before relying on this list.
+- Consumer-specific fields and rules belong in the consumer's extension validator.
+  `scenario`, `adr`, `quotable`, and `maxIdleTurns` are not universal requirements.
+- `subagent.config.json` selects sources and runtime targets. Do not assume every
+  consumer uses `archetypes/`, or that one source produces only one file across
+  multiple targets.
+- `src/cli.ts` owns CLI behavior; `package.json` owns repository script names.
 
-- `name`: required, lowercase kebab-case
-- `description`: required, non-empty
-- `scenario`: required, one of `meeting|creator`
-- `adr`: required
-- prompt body: required, non-empty
+## Evidence levels
 
-### Governance Rules
+Preview validates and reports the proposed composition. Apply writes the reviewed
+outputs. Check detects current source/output drift. Verify checks the production
+compose contract for a configured production target. None proves a live model
+followed the agent instructions. Report a live smoke test separately when performed.
 
-- Source of truth is `archetypes/**/*.agent.md`
-- Composed runtime files are generated artifacts
-- `quotable` fire-and-freeze implies `maxIdleTurns = 0` (when config is present)
-- Cross-file `name` must be globally unique
-
-### Discovery Rules
-
-- Each source agent maps to exactly one runtime file
-- Runtime file name must match source `name`
-- Description must not be empty after compose
-- Repeat compose must be idempotent
-
-## Error Code Convention
-
-- `E_SCHEMA_*`: schema validation failures
-- `E_RULE_*`: governance rule failures
-- `E_DISCOVERY_*`: mapping/collision/drift failures
-- `E_COMPOSE_*`: compose runtime failures
-- `E_SMOKE_*`: runtime smoke failures
-
-## Suggested Check Commands (planned)
-
-```bash
-pnpm agents:audit
-pnpm agents:audit-discovery
-pnpm agents:compose
-pnpm agents:check
-```
-
-If these commands are not yet implemented, governance runs should still report
-missing command gaps explicitly.
-
-## PR Checklist
-
-- [ ] Audit passed
-- [ ] Discovery audit passed
-- [ ] Compose deterministic
-- [ ] Smoke checks passed (if adapter behavior touched)
-- [ ] Docs updated (README/skill/reference if policy changed)
+Use actual reported diagnostic codes and paths; do not invent `E_SCHEMA_*` or
+`E_DISCOVERY_*` codes for checks the compiler did not execute.
