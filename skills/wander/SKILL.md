@@ -1,1 +1,0 @@
-/Users/j.z/.cursor/skills/wander/SKILL.md

@@ -23,94 +23,42 @@ profiles:
 
 # Wander Smoke Agent
 
-You are a CI monitoring smoke tester. Your only job is to trigger a GitHub Actions
-workflow, hand it off to Wander, and then poll until you have a conclusive result.
-You never assume success. You always confirm.
+Use this example only when the user has authorized triggering the named workflow. Starting a monitor does not establish success. Do not start a second background watcher while polling the same run.
 
-## Input contract
+## Inputs
 
-When invoked, you receive:
-- `repo`: GitHub repo in `owner/name` format (default: infer from `git remote`)
-- `workflow`: workflow filename, e.g. `ci.yml` (default: `ci.yml`)
-- `branch`: branch to monitor (default: current branch from `git branch --show-current`)
+Set `REPO` (`owner/name`), `WORKFLOW` (workflow filename), `BRANCH`, and `WANDER_HOME` from the request and verified repository context. Require the maintained Wander checkout; the skill name alone does not install its scripts.
 
-If any input is missing, derive it from the local git context before proceeding.
-
-## Execution loop
-
-### Phase 1 — Trigger
-
-1. Confirm the workflow exists: `gh workflow list --repo <repo>`
-2. Dispatch the workflow manually:
-   ```bash
-   gh workflow run <workflow> --repo <repo> --ref <branch>
-   ```
-3. Wait 5 seconds for GitHub to register the run.
-
-### Phase 2 — Wander handoff
-
-4. Start Wander in background:
-   ```bash
-   "$WANDER_HOME/watch-workflow-bg.sh" <workflow> <branch> &
-   WANDER_PID=$!
-   echo "Wander PID: $WANDER_PID"
-   ```
-5. Report to user: "Wander is watching `<workflow>` on `<branch>`. Polling for result..."
-
-### Phase 3 — Active poll loop
-
-Poll every 15 seconds until conclusion is not empty.
+## Trigger and pin the dispatched run
 
 ```bash
-while true; do
-  RESULT=$(gh run list \
-    --workflow=<workflow> \
-    --branch=<branch> \
-    --repo=<repo> \
-    --limit 1 \
-    --json databaseId,status,conclusion \
-    --jq '.[0]')
-
-  STATUS=$(echo "$RESULT" | jq -r .status)
-  CONCLUSION=$(echo "$RESULT" | jq -r .conclusion)
-  RUN_ID=$(echo "$RESULT" | jq -r .databaseId)
-
-  echo "[$(date +%H:%M:%S)] run=$RUN_ID status=$STATUS conclusion=$CONCLUSION"
-
-  if [ "$STATUS" = "completed" ]; then
-    break
+set -euo pipefail
+HEAD_SHA=$(gh api "repos/$REPO/commits/$BRANCH" --jq .sha)
+STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+gh workflow run "$WORKFLOW" --repo "$REPO" --ref "$BRANCH"
+RUN_ID=""
+for ((attempt=0; attempt<6; attempt++)); do
+  RUNS=$(gh run list --repo "$REPO" --workflow "$WORKFLOW" --branch "$BRANCH" \
+    --commit "$HEAD_SHA" --event workflow_dispatch --created ">=$STARTED_AT" \
+    --limit 100 --json databaseId,headSha)
+  COUNT=$(jq length <<< "$RUNS")
+  if ((COUNT > 1)); then
+    echo 'Ambiguous dispatch identity; inspect candidates before selecting a run.' >&2
+    exit 1
   fi
-  sleep 15
+  if ((COUNT == 1)); then RUN_ID=$(jq -r '.[0].databaseId' <<< "$RUNS"); break; fi
+  sleep 5
 done
+[[ -n "$RUN_ID" ]] || { echo 'Dispatch run not found within discovery budget' >&2; exit 1; }
+GH_REPO="$REPO" WANDER_RUN_ID="$RUN_ID" WANDER_HEAD_SHA="$HEAD_SHA" \
+  WANDER_MAX_POLLS=80 WANDER_POLL_SECONDS=15 \
+  "$WANDER_HOME/watch-workflow.sh" "$WORKFLOW" "$BRANCH"
 ```
 
-### Phase 4 — Result handling
+The foreground script pins the run and returns 0 only for `success`, 1 for a non-success terminal outcome or lookup error, and 124 when its poll budget expires. The 80 × 15-second wait budget excludes API request latency. A monitor timeout does not mean GitHub itself concluded `timed_out`.
 
-**On success** (`conclusion = success`):
-- Report: "✅ Wander smoke passed. Workflow `<workflow>` completed successfully. Run: <URL>"
-- Exit cleanly.
+## Result
 
-**On failure** (`conclusion = failure | cancelled | timed_out`):
-- Fetch failed logs immediately:
-  ```bash
-  gh run view "$RUN_ID" --log-failed --repo <repo>
-  ```
-- Surface the first actionable error from the logs.
-- Report: "❌ Wander smoke failed. Run: <URL>. Error: <summary>. Suggested fix: <fix>"
-- Exit with non-zero status.
+Read the actual terminal result for that run ID, repository and head SHA. Report the run URL, workflow, branch, SHA, conclusion and elapsed time. For a failed run, inspect `gh run view "$RUN_ID" --repo "$REPO" --log-failed` and report the first actionable error. If the outcome remains unknown, report the monitoring limit and the run URL; never relabel it as a remote success or failure.
 
-## Output contract
-
-Final report must include:
-- Run ID and URL
-- Workflow name and branch
-- Conclusion (`success` | `failure` | `cancelled` | `timed_out`)
-- If failure: first actionable error line + suggested fix
-- Total wall-clock time from dispatch to conclusion
-
-## Constraints
-
-- Never skip Phase 3. Always confirm conclusion before reporting.
-- Never declare success from Phase 2 alone (Wander starting ≠ task succeeding).
-- Poll interval: 15 seconds. Max wait: 20 minutes (80 polls). After timeout, report `timed_out`.
-- Do not modify any source files. This agent is read-only with respect to the codebase.
+This workflow dispatches CI but does not edit source files, merge, deploy separately, or send messages. A later action needs authorization covering that action.

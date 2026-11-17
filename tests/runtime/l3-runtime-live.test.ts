@@ -47,7 +47,7 @@ describe("L3 Runtime Live Smoke", () => {
     writeFileSync(prodPath, composeSubagent(doc, "production"), "utf8");
   });
 
-  it("production runtime loads and executes in Node process", () => {
+  it("production artifact loads in Node (no model execution)", () => {
     const run = spawnSync("node", [PROD_CHECKER, prodPath], { encoding: "utf8" });
     expect(run.status).toBe(0);
     expect(run.stdout).toContain("\"ok\":true");
@@ -62,6 +62,7 @@ describe("L3 Runtime Live Smoke", () => {
 
       const run = spawnSync(cmd, {
         shell: true,
+        timeout: L3_MARKDOWN_PROBE_TIMEOUT_MS - 1000,
         encoding: "utf8",
         env: { ...process.env, AGENT_FILE: cursorPath },
       });
@@ -79,6 +80,7 @@ describe("L3 Runtime Live Smoke", () => {
 
       const run = spawnSync(cmd, {
         shell: true,
+        timeout: L3_MARKDOWN_PROBE_TIMEOUT_MS - 1000,
         encoding: "utf8",
         env: { ...process.env, AGENT_FILE: codexPath },
       });
@@ -96,6 +98,7 @@ describe("L3 Runtime Live Smoke", () => {
 
       const run = spawnSync(cmd, {
         shell: true,
+        timeout: L3_MARKDOWN_PROBE_TIMEOUT_MS - 1000,
         encoding: "utf8",
         env: { ...process.env, AGENT_FILE: claudePath },
       });

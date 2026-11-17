@@ -1,3 +1,4 @@
+import { stringify } from "yaml";
 import type { RichAgentDocument, RuntimeTarget, ModelConfig, AgentDefinition } from "./types.js";
 
 /**
@@ -12,7 +13,7 @@ export function composeSubagent(doc: RichAgentDocument, target: RuntimeTarget, p
   switch (target) {
     case "cursor":
     case "codex":
-      // Codex CLI consumes the same name/description/body frontmatter shape as Cursor agents.
+      // The Codex target is a portable prompt artifact, not a native agent registration.
       return composeCursorMarkdown(doc);
     case "claude-code":
       return composeClaudeCodeMarkdown(doc, profile);
@@ -27,6 +28,9 @@ export function composeSubagent(doc: RichAgentDocument, target: RuntimeTarget, p
 
 /** Resolve the effective model config by merging top-level default with profile override. */
 export function resolveModel(doc: RichAgentDocument, profileName?: string): ModelConfig | undefined {
+  if (profileName && !doc.frontmatter.profiles?.profiles[profileName]) {
+    throw new Error(`Unknown profile: ${profileName}`);
+  }
   const base = doc.frontmatter.model;
   if (!profileName) return base;
 
@@ -41,37 +45,23 @@ export function resolveModel(doc: RichAgentDocument, profileName?: string): Mode
 
 /** Minimal frontmatter — name + description + body. No model, no profiles. */
 function composeCursorMarkdown(doc: RichAgentDocument): string {
-  return [
-    "---",
-    `name: ${doc.frontmatter.name}`,
-    `description: ${doc.frontmatter.description}`,
-    "---",
-    "",
-    doc.body.trim(),
-    ""
-  ].join("\n");
+  return `---\n${stringify({ name: doc.frontmatter.name, description: doc.frontmatter.description })}---\n\n${doc.body.trim()}\n`;
 }
 
 // ── Claude Code adapter ──────────────────────────────────────────
 
 function composeClaudeCodeMarkdown(doc: RichAgentDocument, profile?: string): string {
-  const lines = [
-    "---",
-    `name: ${doc.frontmatter.name}`,
-    `description: ${doc.frontmatter.description}`,
-  ];
-
   const model = resolveModel(doc, profile);
-  lines.push(`model: ${model?.name ?? "inherited"}`);
-
-  // maxTurns comes from extensions (consumer-specific)
-  const maxTurns = doc.extensions?.["maxIdleTurns"] ?? doc.extensions?.["config"]?.["maxIdleTurns" as never];
-  if (maxTurns && Number(maxTurns) > 0) {
-    lines.push(`maxTurns: ${maxTurns}`);
+  const fields: Record<string, unknown> = {
+    name: doc.frontmatter.name, description: doc.frontmatter.description,
+    model: model?.name ?? "inherit",
+  };
+  const config = doc.extensions["config"] as Record<string, unknown> | undefined;
+  const maxTurns = doc.extensions["maxIdleTurns"] ?? config?.["maxIdleTurns"];
+  if (typeof maxTurns === "number" && Number.isSafeInteger(maxTurns) && maxTurns > 0) {
+    fields.maxTurns = maxTurns;
   }
-
-  lines.push("---", "", doc.body.trim(), "");
-  return lines.join("\n");
+  return `---\n${stringify(fields)}---\n\n${doc.body.trim()}\n`;
 }
 
 // ── Production adapter ───────────────────────────────────────────
@@ -122,7 +112,7 @@ function composeProductionJSON(doc: RichAgentDocument, profile?: string): string
   // Build the JSON root: start with the AgentDefinition fields, then spread
   // extensions at the top level for backwards compatibility (consumers rely on
   // e.g. `archetype`, `contentSchema` at root rather than under `extensions`).
-  const root: Record<string, unknown> = {};
+  const root: Record<string, unknown> = { ...def.extensions };
 
   root["name"] = def.name;
   root["description"] = def.description;
@@ -131,10 +121,7 @@ function composeProductionJSON(doc: RichAgentDocument, profile?: string): string
     root["version"] = def.version;
   }
 
-  // Spread opaque extensions at root level (consumer-defined fields).
-  for (const [key, value] of Object.entries(def.extensions)) {
-    root[key] = value;
-  }
+  // Core identity wins over opaque extension keys.
 
   root["model"] = def.model;
 

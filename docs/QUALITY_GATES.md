@@ -10,7 +10,7 @@ failures.
 | --- | --- | --- |
 | **L1 · Schema** | Required fields, YAML frontmatter, parser errors | Always local and deterministic |
 | **L2 · Runtime contract** | Generated output matches the target runtime shape | Always local and deterministic |
-| **L3 · Live smoke** | A real runtime can load or execute the artifact | Optional unless explicitly required |
+| **L3 · Process probes** | Built-in JSON load check; real runtime only with configured probes | Optional unless explicitly required |
 
 ## Standard commands
 
@@ -44,7 +44,7 @@ command:
 - `CLAUDE_RUNTIME_CHECK_CMD`
 
 `pnpm test:l3` passes `AGENT_FILE` pointing at the temporary composed artifact.
-Markdown probes use a five-minute Vitest timeout so an actual CLI or IDE
+Markdown probes use a five-minute subprocess and Vitest timeout so an actual CLI or IDE
 round-trip can complete.
 
 Example for OpenAI Codex CLI:
@@ -72,3 +72,5 @@ pnpm exec subagent-compose --verify --target production
 See the [Production JSON Contract](PRODUCTION_JSON_CONTRACT.md) for fidelity
 rules and exit codes, and the [SDK Probe Contract](SDK_PROBE_CONTRACT.md) for L3
 probe input/output semantics.
+
+The built-in production checker only parses JSON and counts prompt bytes; it is not model execution or downstream runtime acceptance. `--check` includes source and sidecar mtimes, not semantic fidelity. Matrix internal commands pass argv directly; user-provided `--l1-cmd`, `--l2-cmd`, and runtime commands are trusted shell commands, bounded by `--timeout-ms`.

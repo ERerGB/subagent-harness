@@ -32,7 +32,10 @@ try {
   const { loadAgentFromDisk } = await import(`file://${distParse}`);
   const { composeSubagent } = await import(`file://${distCompose}`);
 
+  const { validateRichAgent } = await import(new URL("../dist/validate.js", import.meta.url).href);
   const doc = loadAgentFromDisk(resolve(agentPath));
+  const validation = validateRichAgent(doc);
+  if (!validation.ok) throw new Error(validation.issues.filter(i => i.level === "error").map(i => i.message).join("; "));
   const content = composeSubagent(doc, runtime, profile || undefined);
 
   const target = resolve(outputPath);

@@ -118,7 +118,7 @@ describe("serializeExtensions", () => {
     });
     expect(out).toContain("evolution:");
     expect(out).toContain("  engine: hacker");
-    expect(out).toContain("  cycle: 3");
+    expect(out).toContain('  cycle: "3"');
   });
 
   it("returns empty string for empty extensions", () => {

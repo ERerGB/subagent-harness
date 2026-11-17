@@ -34,10 +34,10 @@ describe("composeSubagent — Claude Code runtime", () => {
     expect(out).toContain("model: sonnet");
   });
 
-  it("uses 'inherited' when no model config", () => {
+  it("uses 'inherit' when no model config", () => {
     const doc = parseRichAgentMarkdown("test.md", readFixture("valid-no-model.agent.md"));
     const out = composeSubagent(doc, "claude-code");
-    expect(out).toContain("model: inherited");
+    expect(out).toContain("model: inherit");
   });
 
   it("omits maxTurns when no extensions present", () => {
