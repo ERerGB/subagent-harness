@@ -21,7 +21,7 @@ if (typeof parsed.prompt !== "string" || !parsed.prompt) {
   process.exit(2);
 }
 
-// "Execute" a tiny runtime behavior in a separate Node process.
+// Deterministic JSON load check only; no model or downstream runtime execution.
 const promptBytes = Buffer.byteLength(parsed.prompt, "utf8");
 if (promptBytes <= 0) {
   console.error("E_PROD_RUNTIME_EXEC: prompt byte size is zero");

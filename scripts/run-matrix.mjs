@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { spawnSync } from "node:child_process";
@@ -23,8 +23,10 @@ function splitTargets(raw) {
 
 function runCommand(command, options = {}) {
   const startedAt = Date.now();
-  const run = spawnSync(command, {
-    shell: true,
+  const argv = Array.isArray(command) ? command : null;
+  const run = spawnSync(argv ? argv[0] : command, argv ? argv.slice(1) : [], {
+    shell: !argv,
+    timeout: timeoutMs,
     encoding: "utf8",
     ...options,
   });
@@ -41,6 +43,7 @@ const strict = hasFlag("--strict");
 const targets = splitTargets(getArg("--targets", "production"));
 const reportPath = getArg("--report", "");
 const timeoutMs = Number(getArg("--timeout-ms", "15000"));
+if (!Number.isSafeInteger(timeoutMs) || timeoutMs <= 0) throw new Error("E_MATRIX_TIMEOUT: timeout must be a positive integer");
 const profile = getArg("--profile");
 const agentPath = resolve(getArg("--agent", "tests/e2e/template.agent.md"));
 const l1Command = getArg("--l1-cmd", "pnpm test:l1");
@@ -54,9 +57,7 @@ for (const target of targets) {
   }
 }
 
-const runId = `matrix-${Date.now()}`;
-const artifactDir = resolve(tmpdir(), runId);
-mkdirSync(artifactDir, { recursive: true });
+const artifactDir = mkdtempSync(join(tmpdir(), "matrix-"));
 
 const productionArtifact = join(artifactDir, "production.json");
 const cursorArtifact = join(artifactDir, "cursor.md");
@@ -123,13 +124,9 @@ const composeTargets = [
 ];
 
 for (const spec of composeTargets) {
-  const command = [
-    "node scripts/compose-artifact.mjs",
-    `--agent "${agentPath}"`,
-    `--out "${spec.out}"`,
-    `--runtime "${spec.runtime}"`,
-    profile ? `--profile "${profile}"` : "",
-  ].filter(Boolean).join(" ");
+  const command = [process.execPath, "scripts/compose-artifact.mjs",
+    "--agent", agentPath, "--out", spec.out, "--runtime", spec.runtime,
+    ...(profile ? ["--profile", profile] : [])];
   const out = runCommand(command);
   if (out.status !== 0) {
     pushStage({
@@ -147,7 +144,7 @@ for (const spec of composeTargets) {
 
 for (const target of targets) {
   if (target === "production") {
-    const command = `node tests/runtime/production-runtime-check.mjs "${productionArtifact}"`;
+    const command = [process.execPath, "tests/runtime/production-runtime-check.mjs", productionArtifact];
     const out = runCommand(command);
     pushStage({
       stage: "l3",
@@ -207,7 +204,7 @@ for (const target of targets) {
       if (strict) finalize(2);
       continue;
     }
-    const command = `node scripts/subject-sdk-probe.mjs --probe "${probe}" --artifact "${productionArtifact}" --timeout-ms "${timeoutMs}"`;
+    const command = [process.execPath, "scripts/subject-sdk-probe.mjs", "--probe", probe, "--artifact", productionArtifact, "--timeout-ms", String(timeoutMs)];
     const out = runCommand(command);
     pushStage({
       stage: "l3",

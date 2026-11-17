@@ -91,7 +91,7 @@ implementations.
 | --- | --- |
 | **Canonical aggregation** | Teams converge changes on one versioned `.agent.md` plus optional `.agent.ext.yaml` |
 | **Portable abstraction** | The definition model expresses shared agent semantics independently of vendor serialization |
-| **Target compatibility** | Deterministic adapters emit runtime-native Cursor, Codex, Claude Code, and production artifacts |
+| **Target compatibility** | Deterministic adapters emit Cursor/Claude subagent files, portable Codex prompts, and production JSON |
 | **Contract validation** | Schema and runtime-contract gates verify each generated projection before consumption |
 
 Dev-to-production promotion is one route through this layer, not the layer's
@@ -109,7 +109,7 @@ OpenAPI applies a related idea through a
 
 Today, aggregation happens at the canonical source: teams collaborate on the
 portable definition, then compile outward. The harness does not yet reverse-map
-or merge arbitrary runtime-native files. Compatibility means that each output
+or merge arbitrary runtime-native files. Compatibility means that each supported projection
 satisfies its target contract; it does not imply identical features or behavior
 across models, tools, and runtimes.
 
@@ -130,7 +130,7 @@ agents/changelog-extractor.agent.md       # Author this
               └── subagent-compose --apply
                     ├── .cursor/agents/changelog-extractor.md
                     ├── .codex/agents/changelog-extractor.md
-                    ├── .claude/skills/changelog-extractor/SKILL.md
+                    ├── .claude/agents/changelog-extractor.md
                     └── dist/agents/changelog-extractor.json
 ```
 
@@ -139,8 +139,8 @@ agents/changelog-extractor.agent.md       # Author this
 | Target | Generated Format | Purpose |
 | ------ | ---------------- | ------- |
 | **Cursor** | `.cursor/agents/*.md` | Local IDE autocomplete & agent generation |
-| **Codex** | `.codex/agents/*.md` | OpenAI Codex CLI (`codex exec --instructions`); same markdown shape as Cursor |
-| **Claude Code** | `.claude/skills/*.md` | Global CLI skills |
+| **Codex** | Configured `*.md` output directory | Portable prompt input, e.g. `codex exec - < artifact.md`; not native agent registration |
+| **Claude Code** | `.claude/agents/*.md` | Project subagent definitions |
 | **Production** | `dist/agents/*.json` | CI/CD pipelines & backend SDK consumption |
 
 *More integrations are planned, including Windsurf, Copilot, and Cline.*
@@ -311,3 +311,13 @@ Git tags and GitHub Releases are the primary version signal:
 ### License
 
 Apache-2.0
+
+### External skills and verification boundaries
+
+The `wander` skill is maintained in [ERerGB/wander](https://github.com/ERerGB/wander). Install it through that project; this repository no longer carries a machine-specific symlink. Missing bundled skills are reported and must be supplied by the consuming host.
+
+The Codex adapter emits a prompt artifact, not a native agent registration. Claude Code emits `.claude/agents/*.md` with `model: inherit` when unset; see the [official subagent contract](https://code.claude.com/docs/en/sub-agents). Composition does not register or run a host.
+
+The built-in production probe checks JSON loading and prompt bytes in Node. It does not invoke a model or downstream runtime. Real CLI/API acceptance requires explicitly configured live probes; fixture success is not that evidence. `--check` compares source and sidecar modification times only; use `--verify` for production content fidelity.
+
+Production JSON keeps legacy extension `version` when core frontmatter omits it; an explicit core version/name/description wins. Cursor/Codex projections intentionally ignore profile selection; Claude/production reject unknown selected profiles.

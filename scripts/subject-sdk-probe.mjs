@@ -31,6 +31,8 @@ const probe = getArg("--probe");
 const artifactPath = getArg("--artifact");
 const timeoutMs = Number(getArg("--timeout-ms", "15000"));
 
+if (!Number.isSafeInteger(timeoutMs) || timeoutMs <= 0) fail("E_SUBJECT_PROBE_TIMEOUT", "timeout must be a positive integer", 2);
+
 if (!probe || !artifactPath) {
   fail("E_SUBJECT_PROBE_ARG", "missing --probe or --artifact", 2);
 }
@@ -86,6 +88,7 @@ if (!modulePath) {
   fail("E_SUBJECT_API_MODULE_MISSING", "SUBJECT_HARNESS_API_MODULE is required for API probe", 2);
 }
 
+const deadline = setTimeout(() => fail("E_SUBJECT_API_TIMEOUT", "API probe exceeded timeout"), timeoutMs);
 try {
   const url = pathToFileURL(resolve(modulePath)).href;
   const loaded = await import(url);
@@ -107,7 +110,8 @@ try {
     fail("E_SUBJECT_API_RESULT", "probe function must return an object", 1);
   }
 
-  const ok = Boolean(result.ok);
+  const ok = result.ok === true;
+  clearTimeout(deadline);
   const latencyMs = Number(result.latencyMs ?? Date.now() - startedAt);
   const details = typeof result.details === "object" && result.details ? result.details : {};
 

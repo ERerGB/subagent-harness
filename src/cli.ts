@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { readFileSync, writeFileSync, mkdirSync, rmSync, readdirSync, statSync, existsSync, cpSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync, rmSync, readdirSync, statSync, lstatSync, existsSync, cpSync } from "node:fs";
 import { resolve, basename, join, dirname } from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import { loadAgentFromDisk } from "./parse.js";
@@ -34,6 +34,12 @@ const KNOWN_RUNTIME_SET = new Set<string>(KNOWN_RUNTIMES);
 // Arg parsing — supports both explicit flags and config-file discovery
 // ---------------------------------------------------------------------------
 
+function requiredValue(argv: string[], index: number, flag: string): string {
+  const value = argv[index];
+  if (!value || value.startsWith("-")) throw new Error(`E_COMPOSE_ARG: ${flag} requires a value`);
+  return value;
+}
+
 function parseArgs(): ResolvedPlan {
   const argv = process.argv.slice(2);
   let src = process.env["AGENTS_SRC"] ?? "";
@@ -46,13 +52,13 @@ function parseArgs(): ResolvedPlan {
   for (let i = 0; i < argv.length; i++) {
     switch (argv[i]) {
       case "--src":
-        src = argv[++i] ?? "";
+        src = requiredValue(argv, ++i, "--src");
         break;
       case "--dst":
-        dst = argv[++i] ?? "";
+        dst = requiredValue(argv, ++i, "--dst");
         break;
       case "--pattern":
-        pattern = argv[++i] ?? "";
+        pattern = requiredValue(argv, ++i, "--pattern");
         break;
       case "--target": {
         const v = argv[++i];
@@ -109,6 +115,8 @@ function parseArgs(): ResolvedPlan {
       skillsSrc: undefined,
     };
   }
+
+  if (src || dst) throw new Error("E_COMPOSE_ARG: --src and --dst must be supplied together");
 
   // Otherwise, look for subagent.config.json in cwd
   const configPath = resolve(CONFIG_FILENAME);
@@ -199,6 +207,7 @@ function findAgentFiles(dir: string, pattern: string): string[] {
   function walk(d: string) {
     for (const entry of readdirSync(d)) {
       const full = join(d, entry);
+      if (lstatSync(full).isSymbolicLink()) continue;
       if (statSync(full).isDirectory()) {
         walk(full);
       } else if (entry.endsWith(suffix)) {
@@ -395,7 +404,8 @@ function runCheck(files: string[], target: ComposeTarget): CheckResult {
       continue;
     }
 
-    const srcMtime = statSync(file).mtimeMs;
+    const sidecar = file.replace(/\.agent\.md$/, ".agent.ext.yaml");
+    const srcMtime = Math.max(statSync(file).mtimeMs, existsSync(sidecar) ? statSync(sidecar).mtimeMs : 0);
     const dstMtime = statSync(dest).mtimeMs;
 
     if (srcMtime > dstMtime) {
@@ -427,11 +437,20 @@ function collectSkillNames(files: string[], srcDir: string): Set<string> {
     if (!profiles) continue;
     for (const p of Object.values(profiles)) {
       for (const s of p.skills ?? []) {
-        if (s) names.add(s);
+        if (s) {
+          if (!/^[a-zA-Z0-9_-]+(?:\/[a-zA-Z0-9_-]+)*$/.test(s)) throw new Error(`E_SKILL_PATH: invalid skill name ${s}`);
+          names.add(s);
+        }
       }
     }
   }
   return names;
+}
+
+function assertNoLinks(path: string): void {
+  const info = lstatSync(path);
+  if (info.isSymbolicLink()) throw new Error(`E_SKILL_SYMLINK: ${path}`);
+  if (info.isDirectory()) for (const child of readdirSync(path)) assertNoLinks(join(path, child));
 }
 
 function runSkillBundle(
@@ -448,6 +467,8 @@ function runSkillBundle(
       console.error(`  SKIP skill ${name} (E_SKILL_NOT_FOUND: ${srcDir})`);
       continue;
     }
+    assertNoLinks(srcDir);
+    if (existsSync(destDir)) assertNoLinks(destDir);
     if (mode === "dry-run") {
       console.log(`  WOULD bundle skill: ${srcDir} -> ${destDir}`);
       bundled++;
@@ -475,6 +496,11 @@ function main(): void {
   }
 
   const files = findAgentFiles(plan.src, plan.pattern);
+  const basenames = files.map(file => basename(file, ".agent.md"));
+  if (new Set(basenames).size !== basenames.length) throw new Error("E_COMPOSE_COLLISION: duplicate agent output names");
+  for (const target of activeTargets) {
+    if (!KNOWN_RUNTIME_SET.has(target.runtime)) throw new Error(`E_COMPOSE_TARGET: unknown runtime ${target.runtime}`);
+  }
   let totalComposed = 0;
   let totalFailed = 0;
   let totalVerified = 0;
@@ -519,7 +545,7 @@ function main(): void {
 
   for (const target of activeTargets) {
     console.log(`[${target.runtime}] source=${plan.src} target=${target.dst} mode=${plan.mode}`);
-    mkdirSync(target.dst, { recursive: true });
+    if (plan.mode === "apply") mkdirSync(target.dst, { recursive: true });
 
     if (plan.mode === "clean") {
       const cleaned = runClean(files, target);
@@ -532,7 +558,7 @@ function main(): void {
 
     // Skill bundling when skillsSrc and skillsDst are set
     const skillsSrc = target.skillsSrc ? resolve(plan.configDir, target.skillsSrc) : null;
-    if (target.skillsDst && skillsSrc && skillNames.size > 0) {
+    if (plan.mode !== "clean" && target.skillsDst && skillsSrc && skillNames.size > 0) {
       const bundled = runSkillBundle(skillNames, skillsSrc, target.skillsDst, plan.mode);
       console.log(`  Bundled ${bundled} skill(s).`);
     }

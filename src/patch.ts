@@ -17,6 +17,13 @@ export interface PatchOp {
  */
 export function patchAgent(doc: RichAgentDocument, op: PatchOp): RichAgentDocument {
   const [head, ...rest] = op.path.split(".");
+  const scalar = ["name", "description", "body"].includes(head);
+  const supported = (scalar && rest.length === 0)
+    || (head === "model" && (rest.length === 0 || (rest.length === 1 && ["name", "temperature", "maxTokens"].includes(rest[0]))))
+    || (head === "extensions" && rest.length === 1 && Boolean(rest[0]));
+  if (!supported) throw new Error(`unsupported patch path: "${op.path}"`);
+  if (scalar && typeof op.value !== "string") throw new Error("scalar patch requires a string");
+
 
   switch (head) {
     case "name":

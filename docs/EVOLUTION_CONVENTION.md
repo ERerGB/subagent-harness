@@ -1,6 +1,6 @@
 # Evolution Field Convention
 
-The `evolution` field is an **extension** (lives in `.agent.ext.yaml`, not in the core `.agent.md`). It enables automated prompt optimization tools like [Hacker](https://github.com/user/hacker) to track mutation history on agent definitions.
+The `evolution` field is an **extension** (lives in `.agent.ext.yaml`, not in the core `.agent.md`). It enables automated prompt optimization tools like [Hacker](https://github.com/ERerGB/hacker) to track mutation history on agent definitions.
 
 ## Location
 

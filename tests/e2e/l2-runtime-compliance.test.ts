@@ -1,3 +1,4 @@
+import { parse } from "yaml";
 import { describe, it, expect, beforeAll } from "vitest";
 import { join, resolve } from "node:path";
 import { loadAgentFromDisk } from "../../src/parse.js";
@@ -8,12 +9,7 @@ const TEMPLATE_PATH = join(resolve(import.meta.dirname), "template.agent.md");
 function parseFrontmatter(md: string): Record<string, string> {
   const match = md.match(/^---\n([\s\S]*?)\n---/);
   if (!match) return {};
-  const result: Record<string, string> = {};
-  for (const line of match[1].split("\n")) {
-    const m = line.match(/^(\w[\w-]*):\s+(.*)/);
-    if (m) result[m[1]] = m[2].trim();
-  }
-  return result;
+  return parse(match[1]);
 }
 
 describe("L2 Runtime Compliance", () => {
