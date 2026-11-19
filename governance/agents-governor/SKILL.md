@@ -5,34 +5,22 @@ description: Validate rich agent definitions and inspect deterministic runtime c
 
 # Agents Governor
 
-Resolve the consuming repository and its `subagent.config.json` before choosing
-source and target directories. The compiler's schema and the consumer's extension
-validator define the contract; a historical project's fields are not global rules.
-Read [reference.md](reference.md) for the verification boundaries.
+Resolve the consuming repository, installed compiler version and
+`subagent.config.json`. Read its source definitions, target configuration and
+extension validator; project-specific fields are not universal schema rules.
+Use [the reference](reference.md) for validation and evidence boundaries.
 
-## Validate and compose
+From the consumer's cwd, preview with `subagent-compose --dry-run`, or
+`node /absolute/subagent-harness/dist/cli.js --dry-run` for a built checkout.
+Configuration selects runtime targets; explicit `--src`/`--dst` is the legacy
+Cursor path. Preserve actual diagnostics and distinguish errors from optional-field
+warnings. Inspect output paths, names and collisions before an authorized `--apply`.
+Do not add `--clean` to ordinary verification.
 
-1. Read the installed package version, repository scripts, source definitions,
-   target configuration, and any consumer extension validator.
-2. Use the current compiler to parse and validate definitions. Keep required-field
-   errors separate from optional-model/profile warnings.
-3. Run a composition preview from the consuming repository. With a built checkout,
-   use `node /absolute/subagent-harness/dist/cli.js --dry-run`; with the package
-   installed, use `subagent-compose --dry-run`. Both read the current directory's
-   `subagent.config.json`. Explicit `--src`/`--dst` is the legacy Cursor path;
-   use configuration for other runtimes.
-4. Inspect generated names, target paths, collisions and intended scope before an
-   authorized `--apply`. Do not invoke `--clean` as part of ordinary verification.
-5. After apply, run the same compiler with `--check` to detect source/output drift.
-   For a configured production target, `--verify` checks its compose contract;
-   it does not run a model or establish behavioral parity.
+After apply, use the same compiler's `--check` for source/output drift and, for a
+configured production target, `--verify` for its compose contract. Neither proves
+live model behavior or cross-runtime parity. Report source/target, commands, files,
+drift and unverified runtime claims; generated files remain derived artifacts.
 
-When changing this compiler repository, use its actual package scripts:
-`pnpm typecheck`, `pnpm test`, and `pnpm build`. Consumer repositories may provide
-additional audit scripts; inspect them rather than assuming `agents:*` commands
-exist. Runtime smoke tests require their own configured runtime and authorization.
-
-## Report
-
-Report the source and target, commands and outcomes, changed files, drift result,
-and any runtime behavior left unverified. Composed files remain derived artifacts.
+When changing this compiler, run its `pnpm typecheck`, `pnpm test` and `pnpm build`.
+For a consumer, inspect its actual scripts instead of assuming `agents:*` exists.
